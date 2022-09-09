@@ -17,7 +17,7 @@ docker run \
   -v /etc/passwd:/etc/passwd:ro \
   -v /etc/group:/etc/group:ro \
   -v $HOME/.ssh:$HOME/.ssh:ro \
-  efrecon/sshd-cloudflared
+  efrecon/sshd-cloudflared \
   -v -g xxxx
 ```
 
