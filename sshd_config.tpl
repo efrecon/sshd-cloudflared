@@ -21,4 +21,4 @@ AllowUsers $USER
 # Only allow those keys
 AuthorizedKeysFile $PWD/authorized_keys
 
-ForceCommand ash
+ForceCommand $SHELL

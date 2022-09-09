@@ -20,6 +20,8 @@ CF_SSHD_DIE=${CF_SSHD_DIE:-"7d"}
 
 CF_SSHD_TEMPLATE=${CF_SSHD_TEMPLATE:-"/usr/local/lib/sshd_config.tpl"}
 
+CF_SSHD_SHELL=${CF_SSHD_SHELL:-"${SHELL:-"ash"}"}
+
 usage() {
   # This uses the comments behind the options to show the help. Not extremly
   # correct, but effective and simple.
@@ -32,10 +34,12 @@ usage() {
   exit "${1:-0}"
 }
 
-while getopts "g:vh-" opt; do
+while getopts "g:s:vh-" opt; do
   case "$opt" in
     g) # GitHub account
       CF_SSHD_GITHUB="$OPTARG";;
+    s) # Shell to use for the user, needs to be installed!
+      CF_SSHD_SHELL="$OPTARG";;
     -) # End of options, everything are the paths to the files to upload
       break;;
     v) # Turn on verbosity, will otherwise log on errors/warnings only
@@ -108,12 +112,13 @@ fi
 verbose "Generating SSHd host keys"
 ssh-keygen -q -f "${CF_SSHD_DIR}/ssh_host_rsa_key" -N '' -b 4096 -t rsa
 
-verbose "Creating SSHd configuration at ${CF_SSHD_DIR}/sshd_config"
+verbose "Creating SSHd configuration at ${CF_SSHD_DIR}/sshd_config from $CF_SSHD_TEMPLATE"
 sed \
   -e "s,\$PWD,${CF_SSHD_DIR},g" \
   -e "s,\$USER,$(id -un),g" \
   -e "s,\$PORT,${CF_SSHD_PORT},g" \
-  ./sshd_config.tpl > "${CF_SSHD_DIR}/sshd_config"
+  -e "s,\$SHELL,${CF_SSHD_SHELL},g" \
+  "$CF_SSHD_TEMPLATE" > "${CF_SSHD_DIR}/sshd_config"
 
 verbose "Starting SSHd server"
 /usr/sbin/sshd -f "${CF_SSHD_DIR}/sshd_config" -D -E "${CF_SSHD_DIR}/sshd.log" &
