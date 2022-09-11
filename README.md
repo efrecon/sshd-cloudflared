@@ -22,7 +22,7 @@ docker run \
   --group-add $(getent group docker|cut -d: -f 3) \
   -v /var/run/docker.sock:/var/run/docker.sock \
   -v /usr/bin/docker:/usr/bin/docker:ro \
-  efrecon/sshd-cloudflared \
+  ghcr.io/efrecon/sshd-cloudflared \
   -v -g xxxx
 ```
 
