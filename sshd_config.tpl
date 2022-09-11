@@ -1,4 +1,4 @@
-LogLevel DEBUG
+#LogLevel DEBUG
 Port $PORT
 HostKey $PWD/ssh_host_rsa_key
 PidFile $PWD/sshd.pid
@@ -21,4 +21,5 @@ AllowUsers $USER
 # Only allow those keys
 AuthorizedKeysFile $PWD/authorized_keys
 
+# Will be passed from the entrypoint
 ForceCommand $SHELL
