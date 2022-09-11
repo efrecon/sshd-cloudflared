@@ -1,29 +1,31 @@
 # Dockerised SSHd Tunnelled through cloudflared
 
 This project aims at providing access to the current directory on your work
-machine through SSH tunnelled by CloudFlare. The projects configures and creates
-a userspace SSHd and establishes a guest tunnel using [cloudflared]. The SSH
-server automatically picks authorised keys from any user at github, thus
-filtering access to the ones that you use. Traffic is fully encrypted
+machine through an SSH [tunnel] at the CloudFlare edge. The projects configures
+and creates a userspace SSH daemon, and establishes a guest tunnel using
+[cloudflared]. The SSH daemon automatically picks authorised keys from any user
+at github, thus restricting access to that user only. Traffic is fully encrypted
 end-to-end.
 
+  [tunnel]: https://developers.cloudflare.com/cloudflare-one/connections/connect-apps/do-more-with-tunnels/trycloudflare/
   [cloudflared]: https://github.com/cloudflare/cloudflared
 
-To start a server in the current directory, run the following command:
+To start a tunnelled SSH server in the current directory, run the following
+command:
 
 ```shell
 docker run \
   -d \
-  --user $(id -u):$(id -g) \
-  -v $(pwd):$(pwd) \
-  -w $(pwd) \
+  --user "$(id -u):$(id -g)" \
+  -v "$(pwd):$(pwd)" \
+  -w "$(pwd)" \
   -v /etc/passwd:/etc/passwd:ro \
   -v /etc/group:/etc/group:ro \
-  --group-add $(getent group docker|cut -d: -f 3) \
+  --group-add "$(getent group docker|cut -d: -f 3)" \
   -v /var/run/docker.sock:/var/run/docker.sock \
-  -v /usr/bin/docker:/usr/bin/docker:ro \
+  -v "$(command -v docker)":/usr/bin/docker:ro \
   ghcr.io/efrecon/sshd-cloudflared \
-  -v -g xxxx
+  -g xxxx
 ```
 
 This command works as follows:
@@ -38,16 +40,16 @@ This command works as follows:
   properly and impersonate you. This is because the configuration cannot have
   identifiers, only names.
 + It passes the Docker socket and even `docker` binary client, together with
-  arranging your user to be a member of the `docker` group. This enables
-  operations on the machine's local Docker daemon from within the container
-  running this image.
+  arranging for your user to be a member of the `docker` group inside the
+  container. This enables operations on the local machine's Docker daemon from
+  within the container running this image.
 + `xxxx` should be replaced by your handle at GitHub, e.g. `efrecon`
 
 As the command is started in the background, you will have to pick up login
 details from the logs. If you have full trust, you should be able to run a
 command similar to the following one from another machine (provided it has a
 copy of `cloudflared` accessible under the PATH). The command will be output in
-the logs, albeit with another access URL:
+the logs, albeit with another access URL and another username:
 
 ```shell
 ssh \
