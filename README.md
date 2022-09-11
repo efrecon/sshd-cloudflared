@@ -1,8 +1,11 @@
 # Dockerised SSHd Tunnelled through cloudflared
 
-This projects implements an SSHd in user space, accessible from anywhere using
-guests tunnels from [cloudflared]. The SSH server automatically picks authorised
-keys from any user at github, thus preventing access from most.
+This project aims at providing access to the current directory on your work
+machine through SSH tunnelled by CloudFlare. The projects configures and creates
+a userspace SSHd and establishes a guest tunnel using [cloudflared]. The SSH
+server automatically picks authorised keys from any user at github, thus
+filtering access to the ones that you use. Traffic is fully encrypted
+end-to-end.
 
   [cloudflared]: https://github.com/cloudflare/cloudflared
 
@@ -16,7 +19,9 @@ docker run \
   -w $(pwd) \
   -v /etc/passwd:/etc/passwd:ro \
   -v /etc/group:/etc/group:ro \
-  -v $HOME/.ssh:$HOME/.ssh:ro \
+  --group-add $(getent group docker|cut -d: -f 3) \
+  -v /var/run/docker.sock:/var/run/docker.sock \
+  -v /usr/bin/docker:/usr/bin/docker:ro \
   efrecon/sshd-cloudflared \
   -v -g xxxx
 ```
@@ -24,7 +29,7 @@ docker run \
 This command works as follows:
 
 + It passes your current directory for access to the container, ensuring that
-  you will be able to access the files exported from that location.
+  you will be able to access the files at that location, and nothing else.
 + It passes your current user details (user and group identifier) to the
   container so that the entrypoint will be able to setup the ssh server with
   proper credentials.
@@ -32,8 +37,10 @@ This command works as follows:
   machine, so that the ssh server will be able to refer to your username
   properly and impersonate you. This is because the configuration cannot have
   identifiers, only names.
-+ It passes your ssh settings (in read-only mode!) to the container so the ssh
-  server is able to access your details.
++ It passes the Docker socket and even `docker` binary client, together with
+  arranging your user to be a member of the `docker` group. This enables
+  operations on the machine's local Docker daemon from within the container
+  running this image.
 + `xxxx` should be replaced by your handle at GitHub, e.g. `efrecon`
 
 As the command is started in the background, you will have to pick up login
@@ -47,7 +54,7 @@ ssh \
   -o ProxyCommand='cloudflared access tcp --hostname https://owen-go-exciting-glasgow.trycloudflare.com' \
   -o UserKnownHostsFile=/dev/null \
   -o StrictHostKeyChecking=accept-new \
-  emmanuel@sshd-cloudflared 
+  emmanuel@sshd-cloudflared
 ```
 
 ## Similar Work
