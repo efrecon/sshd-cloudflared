@@ -52,6 +52,21 @@ while getopts "g:s:vh-" opt; do
 done
 shift $((OPTIND-1))
 
+_sublog() {
+  # Eagerly wait for the log file to exist
+  while ! [ -f "${1-0}" ]; do sleep 0.1; done
+  verbose "$1 now present on disk"
+
+  # Then reroute its content through our logging printf style
+  tail -n +0 -f "$1" | while IFS= read -r line; do
+    printf '[%s] [%s] %s\n' \
+      "${2-"$(basename "$0")"}" \
+      "$(date +'%Y%m%d-%H%M%S')" \
+      "$line" \
+      >&2
+  done
+}
+
 # PML: Poor Man's Logging
 _log() {
     printf '[%s] [%s] [%s] %s\n' \
@@ -89,13 +104,16 @@ cleanup() {
   rm -rf "$CF_SSHD_DIR"
 }
 
-check_command jq cloudflared
+check_command curl jq cloudflared
 
 # Make temporary directory inside account, to keep sshd happy
 CF_SSHD_DIR="$(pwd)/.cf-sshd_$(head -c 16 /dev/urandom | base64 | tr -cd '[:alnum:]' | head -c 16)"
 mkdir -p "$CF_SSHD_DIR"
 chmod go-rwx "$CF_SSHD_DIR"
 verbose "Created directory $CF_SSHD_DIR for internal settings, will be cleaned up"
+
+# Create temporary directory (inside container) for logs
+CF_SSHD_LOGDIR=$(mktemp -d -t cf-sshd-logs-XXXXXX)
 
 verbose "SSHd settings in $CF_SSHD_DIR"
 if [ -n "$CF_SSHD_GITHUB" ]; then
@@ -121,14 +139,16 @@ sed \
   "$CF_SSHD_TEMPLATE" > "${CF_SSHD_DIR}/sshd_config"
 
 verbose "Starting SSHd server"
-/usr/sbin/sshd -f "${CF_SSHD_DIR}/sshd_config" -D -E "${CF_SSHD_DIR}/sshd.log" &
+/usr/sbin/sshd -f "${CF_SSHD_DIR}/sshd_config" -D -E "${CF_SSHD_LOGDIR}/sshd.log" &
 pid_sshd=$!
+_sublog "${CF_SSHD_LOGDIR}/sshd.log" "sshd" &
 
 verbose 'Starting Cloudflare tunnel...'
-cloudflared tunnel --no-autoupdate --url "tcp://localhost:$CF_SSHD_PORT" 2>&1 | tee "${CF_SSHD_DIR}/cloudflared.log" &
+cloudflared tunnel --no-autoupdate --url "tcp://localhost:$CF_SSHD_PORT" >"${CF_SSHD_LOGDIR}/cloudflared.log" 2>&1 &
 pid_cloudflared=$!
+_sublog "${CF_SSHD_LOGDIR}/cloudflared.log" "cloudflared" &
 
-url=$(while ! grep -o 'https://.*\.trycloudflare.com' "${CF_SSHD_DIR}/cloudflared.log"; do sleep 1; done)
+url=$(while ! grep -o 'https://.*\.trycloudflare.com' "${CF_SSHD_LOGDIR}/cloudflared.log"; do sleep 1; done)
 public_key=$(cut -d' ' -f1,2 < "${CF_SSHD_DIR}/ssh_host_rsa_key.pub")
 
 echo ""
