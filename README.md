@@ -59,8 +59,48 @@ ssh \
   emmanuel@sshd-cloudflared
 ```
 
+## VS Code
+
+The [`Dockerfile`](./Dockerfile) adds just enough packages to make development
+environments created using this image to be used with the remote extension of VS
+code. If you do not mount your home directory entirely, you will have to create
+a Docker volume that will be used to store the code for the `vscode-server`. The
+content of this volume needs to be owned by your user.
+
+To create and initialise the volume, run the following (and possibly adapt):
+
+```shell
+docker volume create vscode-server
+docker run --rm -v vscode-server:/vscode-server busybox \
+  /bin/sh -c "touch /vscode-server/.initialised && chown -R $(id -u):$(id -g) /vscode-server"
+```
+
+Once you have created that volume, you can pass it to overload the
+`.vscode-server` directory whenever you want an environment, as in the following
+command. The first time you start the remote extension against the SSH daemon in
+that container, it will install and automatically run the server inside the
+`${HOME}/.vscode-server`, which is owned by your user (inside and outside of the
+container).
+
+```shell
+docker run \
+  -d \
+  --user "$(id -u):$(id -g)" \
+  -v "$(pwd):$(pwd)" \
+  -w "$(pwd)" \
+  -v /etc/passwd:/etc/passwd:ro \
+  -v /etc/group:/etc/group:ro \
+  --group-add "$(getent group docker|cut -d: -f 3)" \
+  -v /var/run/docker.sock:/var/run/docker.sock \
+  -v "$(command -v docker)":/usr/bin/docker:ro \
+  -v "vscode-server:${HOME}/.vscode-server" \
+  ghcr.io/efrecon/sshd-cloudflared \
+  -g xxxx
+```
+
 ## Similar Work
 
 Part of this code is inspired by [this] project.
 
   [this]: https://github.com/valeriangalliat/action-sshd-cloudflared
+

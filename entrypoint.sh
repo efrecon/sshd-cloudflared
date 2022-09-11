@@ -10,16 +10,23 @@ CF_SSHD_ROOTDIR=${CF_SSHD_ROOTDIR:-"$( cd -P -- "$(dirname -- "$(command -v -- "
 # Verbosity level
 CF_SSHD_VERBOSE=${CF_SSHD_VERBOSE:-"0"}
 
+# GitHub handle to get keys from
 CF_SSHD_GITHUB=${CF_SSHD_GITHUB:-""}
 
+# Port at which to run the SSH daemon inside the container.
 CF_SSHD_PORT=${CF_SSHD_PORT:-"2222"}
 
+# Hostname to use within the SSH configuration
 CF_SSHD_KNOWN_HOST=${CF_SSHD_KNOWN_HOST:-"sshd-cloudflared"}
 
+# When to die, once everything is setup, the container will run for this time
+# period and will then die, releasing the tunnel.
 CF_SSHD_DIE=${CF_SSHD_DIE:-"7d"}
 
+# Path to the SSH daemon configuration template, should match the Dockerfile.
 CF_SSHD_TEMPLATE=${CF_SSHD_TEMPLATE:-"/usr/local/lib/sshd_config.tpl"}
 
+# Shell to force user into.
 CF_SSHD_SHELL=${CF_SSHD_SHELL:-"${SHELL:-"ash"}"}
 
 usage() {

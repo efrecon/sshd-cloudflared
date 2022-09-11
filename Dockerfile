@@ -36,19 +36,20 @@ RUN wget -q ${TINI_DOWNLOAD}/${TINI_VERSION}/${TINI_BIN} \
     && rm -rf ${TINI_BIN}.sha256sum
 
 # Install requirements for the script and the cloudflared binary at the
-# requested version. We can now use curl as it is part of the requirements for
-# the script. Note: we add bash even though this isn't required. This is so it
-# can be provided through the `-s` option. gcompat facilitates running glibc
-# binaries and is necessary for mounting the local docker client binary into the
-# container.
-RUN apk add --no-cache openssh curl jq bash gcompat && \
-  curl --location --silent --output /usr/local/bin/cloudflared "${CLOUDFLARED_DOWNLOAD}/$CLOUDFLARED_VERSION/cloudflared-linux-amd64" && \
-  chmod a+x /usr/local/bin/cloudflared
+# requested version. We can now use curl for downloads. Note: we add bash even
+# though this isn't required. This is so it can be provided through the `-s`
+# option. gcompat facilitates running glibc binaries and is necessary for
+# mounting the local docker client binary into the container. libstdc++, libgcc
+# enable running the VS Code Remote Extension against this container.
+RUN apk add --no-cache openssh curl jq && \
+    apk add --no-cache bash gcompat libstdc++ libgcc && \
+    curl --location --silent --output /usr/local/bin/cloudflared "${CLOUDFLARED_DOWNLOAD}/$CLOUDFLARED_VERSION/cloudflared-linux-amd64" && \
+    chmod a+x /usr/local/bin/cloudflared
 
 COPY sshd_config.tpl /usr/local/lib/
-COPY cf-sshd.sh /usr/local/bin
+COPY entrypoint.sh /usr/local/bin
 
 # Run behind tini, capturing the entire process group to properly teardown all
 # subprocesses.
 STOPSIGNAL SIGINT
-ENTRYPOINT [ "/usr/local/bin/tini", "-wgv", "--", "/usr/local/bin/cf-sshd.sh" ]
+ENTRYPOINT [ "/usr/local/bin/tini", "-wgv", "--", "/usr/local/bin/entrypoint.sh" ]
