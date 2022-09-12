@@ -30,7 +30,7 @@ CF_SSHD_TEMPLATE=${CF_SSHD_TEMPLATE:-"/usr/local/lib/sshd_config.tpl"}
 CF_SSHD_SHELL=${CF_SSHD_SHELL:-"${SHELL:-"ash"}"}
 
 # Prefix to add to all lines that we output on stdout
-CF_SSHD_PREFIX=${CF_SSHS_PREFIX:-""}
+CF_SSHD_PREFIX=${CF_SSHD_PREFIX:-""}
 
 usage() {
   # This uses the comments behind the options to show the help. Not extremly
@@ -50,8 +50,6 @@ while getopts "g:s:vh-" opt; do
       CF_SSHD_GITHUB="$OPTARG";;
     s) # Shell to use for the user, needs to be installed!
       CF_SSHD_SHELL="$OPTARG";;
-    -) # End of options, everything are the paths to the files to upload
-      break;;
     v) # Turn on verbosity, will otherwise log on errors/warnings only
       CF_SSHD_VERBOSE=1;;
     h) # Print help and exit
