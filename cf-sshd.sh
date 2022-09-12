@@ -10,8 +10,8 @@ CF_SSHD_ROOTDIR=${CF_SSHD_ROOTDIR:-"$( cd -P -- "$(dirname -- "$(command -v -- "
 # Verbosity level
 CF_SSHD_VERBOSE=${CF_SSHD_VERBOSE:-"0"}
 
-# GitHub handle to get keys from
-CF_SSHD_GITHUB=${CF_SSHD_GITHUB:-""}
+# URL to Github API
+CF_SSHD_API=${CF_SSHD_API:-"https://api.github.com"}
 
 # Docker image to use for the container. When tagged with latest, an attempt to
 # pull it will be made in order to catch up with the latest changes.
@@ -85,38 +85,98 @@ if [ -z "$(getent group docker)" ]; then
   error "No group 'docker' on machine, required"
 fi
 
-if ! id | grep -F "(docker)"; then
+if ! id | grep -Fq "(docker)"; then
   error "You need to be a member of the group docker to create a container"
 fi
 
-if ! docker volume ls --quiet | grep -F "$CF_SSHD_VOLUME"; then
+if ! docker volume ls --quiet | grep -Fq "$CF_SSHD_VOLUME"; then
   verbose "Creating Docker volume $CF_SSHD_VOLUME to store VS Code server"
-  docker volume create "$CF_SSHD_VOLUME"
-  docker run \
-    --rm \
-    -v "${CF_SSHD_VOLUME}:/vscode-server" busybox \
-      /bin/sh -c "touch /vscode-server/.initialised && chown -R $(id -u):$(id -g) /vscode-server"
+  if docker volume create "$CF_SSHD_VOLUME" >/dev/null; then
+    docker run \
+      --rm \
+      -v "${CF_SSHD_VOLUME}:/vscode-server" busybox \
+        /bin/sh -c "touch /vscode-server/.initialised && chown -R $(id -u):$(id -g) /vscode-server" >/dev/null 2>&1
+  else
+    error "Could not create Docker volume"
+  fi
 fi
 
 
-if printf %s\\n "$CF_SSHD_IMAGE" | grep -E ':latest$'; then
-  docker image pull "$CF_SSHD_IMAGE"
+if printf %s\\n "$CF_SSHD_IMAGE" | grep -Eq ':latest$'; then
+  verbose "Pulling latest image $CF_SSHD_IMAGE"
+  docker image pull -q "$CF_SSHD_IMAGE" >/dev/null
 fi
 
 
+# No parameters, try guessing the github username from git settings using the
+# GitHub search API.
+if [ "$#" = "0" ] && command -v git >/dev/null 2>&1; then
+  handle=;       # Will be the GitHub username, if any
+  # Pick user information from gt
+  email=$(git config user.email)
+  fullname=$(git config user.name)
+  # Search using the email address, this is often concealed though.
+  if [ -n "$email" ]; then
+    handle=$( curl --location --silent -G \
+                  --data-urlencode "q=$email in:email" \
+                "${CF_SSHD_API%/}/search/users" |
+              jq -r '.items[0].login' )
+    if [ "$handle" = "null" ]; then
+      warn "Could not match '$email' to user at GitHub"
+      handle=
+    else
+      verbose "Matched '$email' to '$handle' at GitHub"
+    fi
+  fi
+  # Search using the full name if nothing was found. This is a bit brittle as it
+  # is space aware.
+  if [ -z "$handle" ] && [ -n "$fullname" ]; then
+    handle=$( curl --location --silent -G \
+                  --data-urlencode "q=fullname:$fullname" \
+                "${CF_SSHD_API%/}/search/users" |
+              jq -r '.items[0].login' )
+    if [ "$handle" = "null" ]; then
+      warn "Could not match '$fullname' to user at GitHub"
+      handle=
+    else
+      verbose "Matched '$fullname' to '$handle' at GitHub"
+    fi
+  fi
 
-docker container run \
-  -d \
-  --user "$(id -u):$(id -g)" \
-  -v "$(pwd):$(pwd)" \
-  -w "$(pwd)" \
-  -v /etc/passwd:/etc/passwd:ro \
-  -v /etc/group:/etc/group:ro \
-  --group-add "$(getent group docker|cut -d: -f 3)" \
-  -v /var/run/docker.sock:/var/run/docker.sock \
-  -v "$(command -v docker)":/usr/bin/docker:ro \
-  -v "${CF_SSHD_VOLUME}:${HOME}/.vscode-server" \
-  --env "CF_SSHD_KNOWN_HOST=$CF_SSHD_HOSTNAME" \
-  --hostname "$CF_SSHD_HOSTNAME" \
-  "$CF_SSHD_IMAGE" \
-  "$@"
+  # When we have a handle, arrange to pass it to the container through CLI args
+  # that will become the CMD of the Docker container run command and thus be
+  # passed to the entrypoint.
+  if [ -z "$handle" ]; then
+    error "Cannot find GitHub handle and none given at CLI!"
+  else
+    verbose "Will get SSH keys for GitHub user $handle"
+    set -- -g "$handle"
+  fi
+fi
+
+# Create a container arranging for tunneled access to the current directory
+# through cloudflare.
+prefix=$(head -c 16 /dev/urandom | base64 | tr -cd '[:alnum:]' | head -c 16)
+c=$(  docker container run \
+        -d \
+        --user "$(id -u):$(id -g)" \
+        -v "$(pwd):$(pwd)" \
+        -w "$(pwd)" \
+        -v /etc/passwd:/etc/passwd:ro \
+        -v /etc/group:/etc/group:ro \
+        --group-add "$(getent group docker|cut -d: -f 3)" \
+        -v /var/run/docker.sock:/var/run/docker.sock \
+        -v "$(command -v docker)":/usr/bin/docker:ro \
+        -v "${CF_SSHD_VOLUME}:${HOME}/.vscode-server" \
+        --env "CF_SSHD_PREFIX=$prefix" \
+        --env "CF_SSHD_KNOWN_HOST=$CF_SSHD_HOSTNAME" \
+        --hostname "$CF_SSHD_HOSTNAME" \
+        "$CF_SSHD_IMAGE" \
+        "$@" )
+
+# Wait for tunnel information
+verbose "Waiting for tunnel establishment..."
+while ! docker logs "$c" 2>&1 | grep -qE "^${prefix}"; do sleep 0.25; done
+
+verbose "Running in container $c"
+docker logs "$c" 2>&1 | grep -E "^${prefix}" | sed -E "s/^${prefix}//g"

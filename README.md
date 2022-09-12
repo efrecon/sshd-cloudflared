@@ -11,7 +11,8 @@ end-to-end.
   [cloudflared]: https://github.com/cloudflare/cloudflared
 
 To start a tunnelled SSH server in the current directory, run the following
-command:
+command. This command documents the internals, there is a better
+[way](#wrapper).
 
 ```shell
 docker run \
@@ -98,6 +99,46 @@ docker run \
   -g xxxx
 ```
 
+This command can be automated using the [wrapper](#wrapper).
+
+## Wrapper
+
+As the raw `docker` commands are bit complex, this projects comes with a
+[wrapper](./cf-sshd.sh). This is a standalone shell script, tuned for
+installation somewhere in the `$PATH`. The wrapper will:
+
+1. Automatically pull the latest image of this project at the GHCR.
+2. Setup a Docker volume unique for your local user, in order to facilitate
+   using that container as a VS Code [remote](#vs-code).
+3. When called without arguments, the wrapper will collect your `git` email and
+   name and try using though to look for your GitHub handle using the [search]
+   API.
+4. Start a Docker container in the background with either the GitHub handle
+   discovered above, or the remaining arguments, as is.
+5. Wait for the container and tunnel to be ready and extract tunnel information
+   from the Docker logs.
+
+When searching for user details at GitHub fails, you will have to provide this
+information at the command-line. The wrapper uses a `--` to separate option from
+arguments and all arguments are blindly passed to the entrypoint of the Docker
+container. As an example, the following would kickstart a container for the
+`efrecon` GitHub user.
+
+```shell
+./cf-sshd.sh -- -g efrecon
+```
+
+  [search]: https://docs.github.com/en/search-github/searching-on-github/searching-users
+
+## Cleanup
+
+The Docker entrypoint, by default, will create a hidden temporary directory
+under the current directory. This directory starts with the `.cf-sshd_` prefix,
+followed by a random string. This directory will contain files for the
+configuration of the SSH daemon, which need to be accessible with proper
+permissions. If you kill the container abruptly (i.e. using `rm -fv` rather than
+first running `stop`), the directory will not be removed and you will have to
+cleanup manually.
 ## Similar Work
 
 Part of this code is inspired by [this] project.
