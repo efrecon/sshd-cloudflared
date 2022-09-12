@@ -10,7 +10,7 @@ encrypted end-to-end.
 To start a tunnelled SSH server in the current directory, easiest is to
 download, then run the [wrapper](#wrapper). Provided you have the [XDG]
 directory `$HOME/.local/bin` in your account, run the following to install the
-wrapper and make it available as `cf-sshd.sh` under the `$PATH`. in the
+wrapper and make it available as `cf-sshd.sh` under the `$PATH`. In the
 [wrapper](#wrapper) section, you can read further what will happen when you run
 it from a sub-directory.
 
