@@ -1,18 +1,36 @@
 # Dockerised SSHd Tunnelled through cloudflared
 
 This project aims at providing access to the current directory on your work
-machine through an SSH [tunnel] at the CloudFlare edge. The projects configures
+machine through an SSH [tunnel] at the CloudFlare edge. The project configures
 and creates a userspace SSH daemon, and establishes a guest tunnel using
 [cloudflared]. The SSH daemon automatically picks authorised keys from any user
 at github, thus restricting access to that user only. Traffic is fully encrypted
 end-to-end.
 
+To start a tunnelled SSH server in the current directory, easiest is to
+download, then run the [wrapper](#wrapper). Provided you have the [XDG]
+directory `$HOME/.local/bin` in your account, run the following to install it
+and make it available as `cf-sshd.sh` under the `$PATH`. You can read further in
+the [wrapper](#wrapper) section what will happen when you run it from a
+sub-directory.
+
+```shell
+curl \
+  --location \
+  --silent \
+  --output "$HOME/.local/bin/cf-sshd.sh" \
+  https://raw.githubusercontent.com/efrecon/sshd-cloudflared/main/cf-sshd.sh && \
+  chmod u+x "$HOME/.local/bin/cf-sshd.sh"
+```
+
   [tunnel]: https://developers.cloudflare.com/cloudflare-one/connections/connect-apps/do-more-with-tunnels/trycloudflare/
   [cloudflared]: https://github.com/cloudflare/cloudflared
+  [XDG]: https://specifications.freedesktop.org/basedir-spec/basedir-spec-latest.html
 
-To start a tunnelled SSH server in the current directory, run the following
-command. This command documents the internals, there is a better
-[way](#wrapper). Jump directly [there](#wrapper) if you just want to get going!
+## Tunnelled SSHd
+
+If you do not wish to download or run the [wrapper](#wrapper), you can instead
+run the following command.
 
 ```shell
 docker run \
@@ -118,11 +136,11 @@ installation somewhere in the `$PATH`. The wrapper will:
 5. Wait for the container and tunnel to be ready and extract tunnel information
    from the Docker logs.
 
-Running it with the `-v` option, provided it is in the `$PATH` should provide
-output similar to the following:
+Provided the wrapper is accessible through your `$PATH`, running it with the
+`-v` option should provide output similar to the following:
 
 ```console
-emmanuel@localhost:~/dev/projects/foss/efrecon/sshd-cloudflared> ./cf-sshd.sh -v
+emmanuel@localhost:~/dev/projects/foss/efrecon/sshd-cloudflared> cf-sshd.sh -v
 [cf-sshd.sh] [NFO] [20220912-100912] Creating Docker volume vscode-server-emmanuel to store VS Code server
 [cf-sshd.sh] [NFO] [20220912-100914] Pulling latest image ghcr.io/efrecon/sshd-cloudflared:latest
 [cf-sshd.sh] [WRN] [20220912-100919] Could not match 'efrecon@XXXXXXXXXX' to user at GitHub
@@ -142,26 +160,27 @@ Run the following command to connect without verification (DANGER!):
 ```
 
 When searching for user details at GitHub fails, you will have to provide this
-information at the command-line. The wrapper uses a `--` to separate option from
-arguments and all arguments are blindly passed to the entrypoint of the Docker
-container. As an example, the following would kickstart a container for the
-`efrecon` GitHub user.
+information at the command-line. The wrapper uses a `--` to separate options
+from arguments and all arguments are blindly passed to the entrypoint of the
+Docker container. As an example, the following would kickstart a container for
+the `efrecon` GitHub user.
 
 ```shell
-./cf-sshd.sh -- -g efrecon
+cf-sshd.sh -- -g efrecon
 ```
 
   [search]: https://docs.github.com/en/search-github/searching-on-github/searching-users
 
-## Cleanup
+## Manual Cleanup
 
-The Docker entrypoint, by default, will create a hidden temporary directory
+By default, the Docker entrypoint, will create a hidden temporary directory
 under the current directory. This directory starts with the `.cf-sshd_` prefix,
 followed by a random string. This directory will contain files for the
 configuration of the SSH daemon, which need to be accessible with proper
 permissions. If you kill the container abruptly (i.e. using `rm -fv` rather than
 first running `stop`), the directory will not be removed and you will have to
 cleanup manually.
+
 ## Similar Work
 
 Part of this code is inspired by [this] project.
