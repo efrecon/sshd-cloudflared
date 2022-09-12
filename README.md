@@ -132,7 +132,10 @@ installation somewhere in the `$PATH`. The wrapper will:
    name and try using them to look for your GitHub handle using the [search]
    API.
 4. Start a Docker container in the background with either the GitHub handle
-   discovered above, or the remaining arguments, as is.
+   discovered above, or the remaining arguments, as is. Unless specified
+   otherwise, the hostname of the SSH daemon will be the name of the directory
+   where the wrapper was started from. This is to better identify various
+   environments.
 5. Wait for the container and tunnel to be ready and extract tunnel information
    from the Docker logs.
 

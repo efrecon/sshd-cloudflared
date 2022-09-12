@@ -20,16 +20,20 @@ CF_SSHD_IMAGE=${CF_SSHD_IMAGE:-"ghcr.io/efrecon/sshd-cloudflared:latest"}
 # Name of the volume to use for storage of the VS code server
 CF_SSHD_VOLUME=${CF_SSHD_VOLUME:-"vscode-server-$USER"}
 
-# Name of the host to use for the SSH daemon configuration and the hostname
-# within the container. This defaults to the name of the current directory,
-# facilitating identification in the SSH configuration file and at the terminal
-# prompt once you will have ssh'd into the container.
-CF_SSHD_HOSTNAME=${CF_SSHD_HOSTNAME:-"$(basename "$(pwd)")"}
+# Name of the development environment to create. This will be used for the name
+# of the host to use in the SSH daemon configuration and the hostname within the
+# container. This defaults to the name of the current directory, facilitating
+# identification in the SSH configuration file and at the terminal prompt once
+# you will have ssh'd into the development environment.
+CF_SSHD_ENVIRONMENT=${CF_SSHD_ENVIRONMENT:-"$(basename "$(pwd)")"}
+
+# Should the Docker client, if present, be made available inside the container.
+CF_SSHD_DOCKER=${CF_SSHD_DOCKER:-1}
 
 usage() {
   # This uses the comments behind the options to show the help. Not extremly
   # correct, but effective and simple.
-  echo "$0 establishes a cloudflare tunnel and arranges for ssh access" && \
+  echo "$0 establishes a cloudflare tunnel and arranges for ssh access to the current directory" && \
     grep "[[:space:]].)\ #" "$0" |
     sed 's/#//' |
     sed -r 's/([a-z-])\)/-\1/'
@@ -38,10 +42,14 @@ usage() {
   exit "${1:-0}"
 }
 
-while getopts "n:s:vh-" opt; do
+while getopts "e:l:rvh-" opt; do
   case "$opt" in
-    n) # Name of host to use for container and SSH daemon config
-      CF_SSHD_HOSTNAME="$OPTARG";;
+    e) # Name of development environment, e.g. name of host in container and SSHd config. Default: directory name
+      CF_SSHD_ENVIRONMENT="$OPTARG";;
+    l) # Name of volume to mount for VS code support, empty for no support. Default: User-dependent name.
+      CF_SSHD_VOLUME="$OPTARG";;
+    r) # Do not arrange for Docker client presence inside container
+      CF_SSHD_DOCKER=0;;
     -) # End of options, everything after is passed to the entrypoint of the Docker image.
       break;;
     v) # Turn on verbosity, will otherwise log on errors/warnings only
@@ -81,26 +89,31 @@ check_command() {
 }
 
 
-if [ -z "$(getent group docker)" ]; then
-  error "No group 'docker' on machine, required"
-fi
+if [ "$CF_SSHD_DOCKER" = "1" ]; then
+  if [ -z "$(getent group docker)" ]; then
+    warn "No group 'docker' on machine => no Docker access from within container!"
+    CF_SSHD_DOCKER=0
+  fi
 
-if ! id | grep -Fq "(docker)"; then
-  error "You need to be a member of the group docker to create a container"
-fi
-
-if ! docker volume ls --quiet | grep -Fq "$CF_SSHD_VOLUME"; then
-  verbose "Creating Docker volume $CF_SSHD_VOLUME to store VS Code server"
-  if docker volume create "$CF_SSHD_VOLUME" >/dev/null; then
-    docker run \
-      --rm \
-      -v "${CF_SSHD_VOLUME}:/vscode-server" busybox \
-        /bin/sh -c "touch /vscode-server/.initialised && chown -R $(id -u):$(id -g) /vscode-server" >/dev/null 2>&1
-  else
-    error "Could not create Docker volume"
+  if ! id | grep -Fq "(docker)"; then
+    warn "You need to be a member of the group docker for Docker access from within the container"
+    CF_SSHD_DOCKER=0
   fi
 fi
 
+if [ -n "$CF_SSHD_VOLUME" ]; then
+  if ! docker volume ls --quiet | grep -Fq "$CF_SSHD_VOLUME"; then
+    verbose "Creating Docker volume $CF_SSHD_VOLUME to store VS Code server"
+    if docker volume create "$CF_SSHD_VOLUME" >/dev/null; then
+      docker run \
+        --rm \
+        -v "${CF_SSHD_VOLUME}:/vscode-server" busybox \
+          /bin/sh -c "touch /vscode-server/.initialised && chown -R $(id -u):$(id -g) /vscode-server" >/dev/null 2>&1
+    else
+      error "Could not create Docker volume"
+    fi
+  fi
+fi
 
 if printf %s\\n "$CF_SSHD_IMAGE" | grep -Eq ':latest$'; then
   verbose "Pulling latest image $CF_SSHD_IMAGE"
@@ -155,24 +168,33 @@ if [ "$#" = "0" ] && command -v git >/dev/null 2>&1; then
 fi
 
 # Create a container arranging for tunneled access to the current directory
-# through cloudflare.
+# through cloudflare. This recreates the arguments from the end for proper
+# quoting.
 prefix=$(head -c 16 /dev/urandom | base64 | tr -cd '[:alnum:]' | head -c 16)
-c=$(  docker container run \
-        -d \
-        --user "$(id -u):$(id -g)" \
-        -v "$(pwd):$(pwd)" \
-        -w "$(pwd)" \
-        -v /etc/passwd:/etc/passwd:ro \
-        -v /etc/group:/etc/group:ro \
+set -- "$CF_SSHD_IMAGE" "$@"
+if [ -n "$CF_SSHD_VOLUME" ]; then
+  set -- -v "${CF_SSHD_VOLUME}:${HOME}/.vscode-server" "$@"
+fi
+if [ "$CF_SSHD_DOCKER" = "1" ]; then
+  set -- \
         --group-add "$(getent group docker|cut -d: -f 3)" \
         -v /var/run/docker.sock:/var/run/docker.sock \
         -v "$(command -v docker)":/usr/bin/docker:ro \
-        -v "${CF_SSHD_VOLUME}:${HOME}/.vscode-server" \
-        --env "CF_SSHD_PREFIX=$prefix" \
-        --env "CF_SSHD_KNOWN_HOST=$CF_SSHD_HOSTNAME" \
-        --hostname "$CF_SSHD_HOSTNAME" \
-        "$CF_SSHD_IMAGE" \
-        "$@" )
+        "$@"
+fi
+set -- \
+      -d \
+      --user "$(id -u):$(id -g)" \
+      -v "$(pwd):$(pwd)" \
+      -w "$(pwd)" \
+      -v /etc/passwd:/etc/passwd:ro \
+      -v /etc/group:/etc/group:ro \
+      --env "CF_SSHD_PREFIX=$prefix" \
+      --env "CF_SSHD_KNOWN_HOST=$CF_SSHD_ENVIRONMENT" \
+      --env "CF_SSHD_VERBOSE" \
+      --hostname "$CF_SSHD_ENVIRONMENT" \
+      "$@"
+c=$( docker container run "$@" )
 
 # Wait for tunnel information
 verbose "Waiting for tunnel establishment..."
