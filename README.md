@@ -12,7 +12,7 @@ end-to-end.
 
 To start a tunnelled SSH server in the current directory, run the following
 command. This command documents the internals, there is a better
-[way](#wrapper).
+[way](#wrapper). Jump directly [there](#wrapper) if you just want to get going!
 
 ```shell
 docker run \
@@ -117,6 +117,29 @@ installation somewhere in the `$PATH`. The wrapper will:
    discovered above, or the remaining arguments, as is.
 5. Wait for the container and tunnel to be ready and extract tunnel information
    from the Docker logs.
+
+Running it with the `-v` option, provided it is in the `$PATH` should provide
+output similar to the following:
+
+```console
+emmanuel@localhost:~/dev/projects/foss/efrecon/sshd-cloudflared> ./cf-sshd.sh -v
+[cf-sshd.sh] [NFO] [20220912-100912] Creating Docker volume vscode-server-emmanuel to store VS Code server
+[cf-sshd.sh] [NFO] [20220912-100914] Pulling latest image ghcr.io/efrecon/sshd-cloudflared:latest
+[cf-sshd.sh] [WRN] [20220912-100919] Could not match 'efrecon@XXXXXXXXXX' to user at GitHub
+[cf-sshd.sh] [NFO] [20220912-100919] Matched 'Emmanuel Frecon' to 'efrecon' at GitHub
+[cf-sshd.sh] [NFO] [20220912-100919] Will get SSH keys for GitHub user efrecon
+[cf-sshd.sh] [NFO] [20220912-100920] Waiting for tunnel establishment...
+[cf-sshd.sh] [NFO] [20220912-100926] Running in container 0588896c2a0ea5d034e590b019002e375113d8664fdf7dd857aee5c213d2f697
+
+
+Run the following command to connect:
+    ssh-keygen -R sshd-cloudflared && echo 'sshd-cloudflared ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAACAQCndeSVJpQ13ZRjoZrMLN7oaUh6D/rWBorWiG/jLERGEHHYFJDVR2t8G2GYAAfp8ESECMgrpv3hHBG/0vBtxj0klSDc4+tDpAOt8qnB+rJ6Huh8Z61I1Pxrg5gc1gtSH5dROan8ys5K+KaITn0UbZI+M5dZ5qdRgCC8Tzk0ofzsYNot7O6Ad/b/7jVFoejyOZs2XpnI2Bke3b9kUo9C1QhdRHc7gorxtl2QK22xm4VUJrWF4Q4hFu3lz20y9vscLGdYE/YytstZo+c9wWH3fdAJNmgVOhFczAJhavQIitBhR8dEdWsGV9jSpAUjFHfn4wbbnALI4ORB4oTlT4oA/LTKt6RU09k+IoGFUM5aBVMPNkL0SmaQf1plPfuoi0edAc6BDSW9rIiBQiRExrFlFukMsRop8yCtJNXYrYp0SW/DDYeNDkqP3xDHFO0KowTXlDTkG9RwDGtZn9vE4NbBFx1TB2dsoRtOsW9g8AZdAN+4lNIxGELNrO77s5g+rmT6gCPv9oh0v64mTfB2k8C54Pa6vd4Ys+CHZ1AW65cAQOePvzQpY9g2cvNwQg5+e1X8F1/A0Cd8BCg2edFf8vnl2jcTgdgrfy1c/zaqh3pBQ3zg8e1iHAcWlSI2nXm1GZ3JIJ9+OHNf/kJKI5ZIfs32/JvW9JTPlHhLqrS11Q7bKIZsxQ==' >> ~/.ssh/known_hosts && ssh -o ProxyCommand='cloudflared access tcp --hostname https://involve-upgrades-remember-indicated.trycloudflare.com' emmanuel@sshd-cloudflared
+
+Run the following command to connect without verification (DANGER!):
+    ssh -o ProxyCommand='cloudflared access tcp --hostname https://involve-upgrades-remember-indicated.trycloudflare.com' emmanuel@sshd-cloudflared -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=accept-new
+
+
+```
 
 When searching for user details at GitHub fails, you will have to provide this
 information at the command-line. The wrapper uses a `--` to separate option from
