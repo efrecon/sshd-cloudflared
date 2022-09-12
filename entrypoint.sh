@@ -29,6 +29,9 @@ CF_SSHD_TEMPLATE=${CF_SSHD_TEMPLATE:-"/usr/local/lib/sshd_config.tpl"}
 # Shell to force user into.
 CF_SSHD_SHELL=${CF_SSHD_SHELL:-"${SHELL:-"ash"}"}
 
+# Prefix to add to all lines that we output on stdout
+CF_SSHD_PREFIX=${CF_SSHS_PREFIX:-""}
+
 usage() {
   # This uses the comments behind the options to show the help. Not extremly
   # correct, but effective and simple.
@@ -158,15 +161,15 @@ _sublog "${CF_SSHD_LOGDIR}/cloudflared.log" "cloudflared" &
 url=$(while ! grep -o 'https://.*\.trycloudflare.com' "${CF_SSHD_LOGDIR}/cloudflared.log"; do sleep 1; done)
 public_key=$(cut -d' ' -f1,2 < "${CF_SSHD_DIR}/ssh_host_rsa_key.pub")
 
-echo ""
-echo ""
-echo 'Run the following command to connect:'
-echo "    ssh-keygen -R $CF_SSHD_KNOWN_HOST && echo '$CF_SSHD_KNOWN_HOST $public_key' >> ~/.ssh/known_hosts && ssh -o ProxyCommand='cloudflared access tcp --hostname $url' $(id -un)@$CF_SSHD_KNOWN_HOST"
-echo ""
-echo 'Run the following command to connect without verification (DANGER!):'
-echo "    ssh -o ProxyCommand='cloudflared access tcp --hostname $url' $(id -un)@$CF_SSHD_KNOWN_HOST -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=accept-new"
-echo ""
-echo ""
+echo "${CF_SSHD_PREFIX}"
+echo "${CF_SSHD_PREFIX}"
+echo "${CF_SSHD_PREFIX}Run the following command to connect:"
+echo "${CF_SSHD_PREFIX}    ssh-keygen -R $CF_SSHD_KNOWN_HOST && echo '$CF_SSHD_KNOWN_HOST $public_key' >> ~/.ssh/known_hosts && ssh -o ProxyCommand='cloudflared access tcp --hostname $url' $(id -un)@$CF_SSHD_KNOWN_HOST"
+echo "${CF_SSHD_PREFIX}"
+echo "${CF_SSHD_PREFIX}Run the following command to connect without verification (DANGER!):"
+echo "${CF_SSHD_PREFIX}    ssh -o ProxyCommand='cloudflared access tcp --hostname $url' $(id -un)@$CF_SSHD_KNOWN_HOST -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=accept-new"
+echo "${CF_SSHD_PREFIX}"
+echo "${CF_SSHD_PREFIX}"
 
 trap cleanup INT
 trap cleanup TERM
