@@ -4,15 +4,15 @@ This project aims at providing access to the current directory on your work
 machine through an SSH [tunnel] at the CloudFlare edge. The project configures
 and creates a userspace SSH daemon, and establishes a guest tunnel using
 [cloudflared]. The SSH daemon automatically picks authorised keys from any user
-at github, thus restricting access to that user only. Traffic is fully encrypted
-end-to-end.
+(yours?!) at github, thus restricting access to that user only. Traffic is fully
+encrypted end-to-end.
 
 To start a tunnelled SSH server in the current directory, easiest is to
 download, then run the [wrapper](#wrapper). Provided you have the [XDG]
-directory `$HOME/.local/bin` in your account, run the following to install it
-and make it available as `cf-sshd.sh` under the `$PATH`. You can read further in
-the [wrapper](#wrapper) section what will happen when you run it from a
-sub-directory.
+directory `$HOME/.local/bin` in your account, run the following to install the
+wrapper and make it available as `cf-sshd.sh` under the `$PATH`. in the
+[wrapper](#wrapper) section, you can read further what will happen when you run
+it from a sub-directory.
 
 ```shell
 curl \
@@ -67,8 +67,8 @@ This command works as follows:
 As the command is started in the background, you will have to pick up login
 details from the logs. If you have full trust, you should be able to run a
 command similar to the following one from another machine (provided it has a
-copy of `cloudflared` accessible under the PATH). The command will be output in
-the logs, albeit with another access URL and another username:
+copy of `cloudflared` accessible under the `$PATH`). The command will be output
+in the logs, albeit with another access URL and another username:
 
 ```shell
 ssh \
@@ -82,9 +82,9 @@ ssh \
 
 The [`Dockerfile`](./Dockerfile) adds just enough packages to make development
 environments created using this image to be used with the remote extension of VS
-code. If you do not mount your home directory entirely, you will have to create
-a Docker volume that will be used to store the code for the `vscode-server`. The
-content of this volume needs to be owned by your user.
+code. You will have to create a Docker volume that will be used to store the
+code for the `vscode-server` in the container. The content of this volume needs
+to be owned by your user.
 
 To create and initialise the volume, run the following (and possibly adapt):
 
@@ -94,12 +94,11 @@ docker run --rm -v vscode-server:/vscode-server busybox \
   /bin/sh -c "touch /vscode-server/.initialised && chown -R $(id -u):$(id -g) /vscode-server"
 ```
 
-Once you have created that volume, you can pass it to overload the
+Once you have created the volume, you can pass it to overload the
 `.vscode-server` directory whenever you want an environment, as in the following
 command. The first time you start the remote extension against the SSH daemon in
 that container, it will install and automatically run the server inside the
-`${HOME}/.vscode-server`, which is owned by your user (inside and outside of the
-container).
+`${HOME}/.vscode-server`.
 
 ```shell
 docker run \
@@ -132,10 +131,15 @@ installation somewhere in the `$PATH`. The wrapper will:
    name and try using them to look for your GitHub handle using the [search]
    API.
 4. Start a Docker container in the background with either the GitHub handle
-   discovered above, or the remaining arguments, as is. Unless specified
-   otherwise, the hostname of the SSH daemon will be the name of the directory
-   where the wrapper was started from. This is to better identify various
-   environments.
+   discovered above, or the remaining arguments, as is.
+   + Unless specified otherwise, the hostname of the SSH daemon will be the name
+     of the directory where the wrapper was started from. This is to better
+     identify various development environments.
+   + Unless impossible or configured otherwise the wrapper will arrange for the
+     `docker` client to be accessible and fully working from within the
+     container, thus providing access to the local `docker` daemon.
+   + Unless configured otherwise, the wrapper will arrange for the SSH server to
+     be compatible with the VS Code Remote extension.
 5. Wait for the container and tunnel to be ready and extract tunnel information
    from the Docker logs.
 
@@ -171,6 +175,11 @@ the `efrecon` GitHub user.
 ```shell
 cf-sshd.sh -- -g efrecon
 ```
+
+The wrapper is designed to minimise input and should "just work". Options and
+flags exist to tweak its behaviour to your needs if necessary. Calling it with
+the `-h` flag will print help over the dash-led options and flags that it
+supports, as well as the environment variables that it recognises.
 
   [search]: https://docs.github.com/en/search-github/searching-on-github/searching-users
 
