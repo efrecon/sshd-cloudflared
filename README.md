@@ -111,7 +111,7 @@ installation somewhere in the `$PATH`. The wrapper will:
 2. Setup a Docker volume unique for your local user, in order to facilitate
    using that container as a VS Code [remote](#vs-code).
 3. When called without arguments, the wrapper will collect your `git` email and
-   name and try using though to look for your GitHub handle using the [search]
+   name and try using them to look for your GitHub handle using the [search]
    API.
 4. Start a Docker container in the background with either the GitHub handle
    discovered above, or the remaining arguments, as is.
