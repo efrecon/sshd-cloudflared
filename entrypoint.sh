@@ -165,7 +165,7 @@ echo "${CF_SSHD_PREFIX}Run the following command to connect:"
 echo "${CF_SSHD_PREFIX}    ssh-keygen -R $CF_SSHD_KNOWN_HOST && echo '$CF_SSHD_KNOWN_HOST $public_key' >> ~/.ssh/known_hosts && ssh -o ProxyCommand='cloudflared access tcp --hostname $url' $(id -un)@$CF_SSHD_KNOWN_HOST"
 echo "${CF_SSHD_PREFIX}"
 echo "${CF_SSHD_PREFIX}Run the following command to connect without verification (DANGER!):"
-echo "${CF_SSHD_PREFIX}    ssh -o ProxyCommand='cloudflared access tcp --hostname $url' $(id -un)@$CF_SSHD_KNOWN_HOST -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=accept-new"
+echo "${CF_SSHD_PREFIX}    ssh -o ProxyCommand='cloudflared access tcp --hostname $url' -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=accept-new $(id -un)@$CF_SSHD_KNOWN_HOST"
 echo "${CF_SSHD_PREFIX}"
 echo "${CF_SSHD_PREFIX}"
 
