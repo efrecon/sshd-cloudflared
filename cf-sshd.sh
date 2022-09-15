@@ -30,6 +30,10 @@ CF_SSHD_ENVIRONMENT=${CF_SSHD_ENVIRONMENT:-"$(basename "$(pwd)")"}
 # Should the Docker client, if present, be made available inside the container.
 CF_SSHD_DOCKER=${CF_SSHD_DOCKER:-1}
 
+# Local port where to make available the SSH daemon. This is mostly for testing
+# purposes.
+CF_SSHD_PORT=${CF_SSHD_PORT:-""}
+
 usage() {
   # This uses the comments behind the options to show the help. Not extremly
   # correct, but effective and simple.
@@ -42,7 +46,7 @@ usage() {
   exit "${1:-0}"
 }
 
-while getopts "e:l:rvh-" opt; do
+while getopts "e:i:l:p:rvh-" opt; do
   case "$opt" in
     e) # Name of development environment, e.g. name of host in container and SSHd config. Default: directory name
       CF_SSHD_ENVIRONMENT="$OPTARG";;
@@ -50,6 +54,10 @@ while getopts "e:l:rvh-" opt; do
       CF_SSHD_VOLUME="$OPTARG";;
     r) # Do not arrange for Docker client presence inside container
       CF_SSHD_DOCKER=0;;
+    i) # Name and tag of the image to use for the container. Default: latest image at the GHCR.
+      CF_SSHD_IMAGE="$OPTARG";;
+    p) # Local port where to make available the SSH daemon. Default: none
+      CF_SSHD_PORT="$OPTARG";;
     -) # End of options, everything after is passed to the entrypoint of the Docker image.
       break;;
     v) # Turn on verbosity, will otherwise log on errors/warnings only
@@ -181,6 +189,9 @@ if [ "$CF_SSHD_DOCKER" = "1" ]; then
         -v /var/run/docker.sock:/var/run/docker.sock \
         -v "$(command -v docker)":/usr/bin/docker:ro \
         "$@"
+fi
+if [ -n "$CF_SSHD_PORT" ]; then
+  set -- -p "${CF_SSHD_PORT}:2222" "$@"
 fi
 set -- \
       -d \

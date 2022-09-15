@@ -1,4 +1,4 @@
-#LogLevel DEBUG
+LogLevel DEBUG3
 Port $PORT
 HostKey $PWD/ssh_host_rsa_key
 PidFile $PWD/sshd.pid
@@ -21,5 +21,9 @@ AllowUsers $USER
 # Only allow those keys
 AuthorizedKeysFile $PWD/authorized_keys
 
-# Will be passed from the entrypoint
-ForceCommand $SHELL
+# Turns on sftp-server
+Subsystem    sftp    /usr/lib/ssh/sftp-server
+
+# Force the shell for the user
+Match User $USER
+SetEnv SHELL=$SHELL
