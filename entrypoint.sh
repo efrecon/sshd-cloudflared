@@ -120,6 +120,15 @@ cleanup() {
 
 check_command curl jq cloudflared
 
+# Check that the shell is available in the container and arrange to pick a good
+# one if not.
+if [ -n "$CF_SSHD_SHELL" ]; then
+  if ! command -v "$CF_SSHD_SHELL" >/dev/null; then
+    warn "$CF_SSHD_SHELL not available in container, switching to good default shell instead"
+    CF_SSHD_SHELL=
+  fi
+fi
+
 # Pick a shell when none was provided
 if [ -z "$CF_SSHD_SHELL" ]; then
   for sh in $CF_SSHD_SHELL_CANDIDATES; do
@@ -138,13 +147,10 @@ fi
 
 # Make temporary directory inside account, to keep sshd happy. Using mktemp and
 # use the temporary directory instead does not work as the ssh daemon explores
-# the hierarchy upwards.
-CF_SSHD_DIR="$(pwd)/.cf-sshd_$(head -c 16 /dev/urandom | base64 | tr -cd '[:alnum:]' | head -c 16)"
-
-# Inside "our" directory, create ANOTHER directory that will hold configuration
-# files for the SSH daemon. Make sure this directory is only accessible to our
+# the hierarchy upwards. Make sure this directory is only accessible to our
 # user, not his/her group (or even worse: anyone on the system)
-CF_SSHD_SSHDIR=${CF_SSHD_DIR}/sshd-config
+CF_SSHD_DIR="$(pwd)/.cf-sshd_$(head -c 16 /dev/urandom | base64 | tr -cd '[:alnum:]' | head -c 16)"
+CF_SSHD_SSHDIR=${CF_SSHD_DIR};   # This is the same, just for logical separation
 mkdir -p "$CF_SSHD_SSHDIR"
 chmod go-rwx "$CF_SSHD_SSHDIR"
 verbose "Created directory $CF_SSHD_DIR for internal settings, will be cleaned up"
