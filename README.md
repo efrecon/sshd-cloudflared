@@ -1,31 +1,51 @@
 # Dockerised SSHd Tunnelled through cloudflared
 
 This project aims at providing access to the current directory on your work
-machine through an SSH [tunnel] at the CloudFlare edge. The project configures
-and creates a userspace SSH daemon, and establishes a guest tunnel using
-[cloudflared]. The SSH daemon automatically picks authorised keys from any user
-(yours?!) at github, thus restricting access to that user only. Traffic is fully
-encrypted end-to-end.
+machine through an SSH [tunnel] at the CloudFlare edge, all this inside a Docker
+container for clean separation of resources. Containers are launched in the
+background and compatible with the vscode [remote] extension. Traffic is fully
+encrypted end-to-end. Provided that you have downloaded the [wrapper](#wrapper)
+`cf-sshd.sh` and made it available under your `$PATH`, running it will create a
+background container and print out instructions for how to connect to it from
+another machine using `ssh`:
 
-To start a tunnelled SSH server in the current directory, easiest is to
-download, then run the [wrapper](#wrapper). Provided you have the [XDG]
-directory `$HOME/.local/bin` in your account, run the following to install the
-wrapper and make it available as `cf-sshd.sh` under the `$PATH`. In the
-[wrapper](#wrapper) section, you can read further what will happen when you run
-it from a sub-directory.
+```console
+emmanuel@localhost:~/dev> cf-sshd.sh -v
+[cf-sshd.sh] [NFO] [20220916-120406] Pulling latest image ghcr.io/efrecon/sshd-cloudflared:latest
+[cf-sshd.sh] [WRN] [20220916-120413] Could not match 'eXXXXn@gmail.com' to user at GitHub
+[cf-sshd.sh] [NFO] [20220916-120414] Matched 'Emmanuel Frecon' to 'efrecon' at GitHub
+[cf-sshd.sh] [NFO] [20220916-120414] Will get SSH keys for GitHub user efrecon
+[cf-sshd.sh] [WRN] [20220916-120414] Removing group write permissions from current directory for proper SSH access!
+[cf-sshd.sh] [NFO] [20220916-120415] Waiting for tunnel establishment...
+[cf-sshd.sh] [NFO] [20220916-120420] Running in container f105c67100d58a5351818bda3b2468e9902e94fb2642456178027e4f3add4deb
 
-```shell
-curl \
-  --location \
-  --silent \
-  --output "$HOME/.local/bin/cf-sshd.sh" \
-  https://raw.githubusercontent.com/efrecon/sshd-cloudflared/main/cf-sshd.sh && \
-  chmod u+x "$HOME/.local/bin/cf-sshd.sh"
+
+Run the following command to connect:
+    ssh-keygen -R dev && echo 'dev ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAACAQDGz7HHHQv7TKXEs12NzjpclrhDveqzI5QOmifO97NWBgugymyC75TlyCZ2DCi30jp56ykazoyf+MxffmXuAH5NQSvogmW4mXqzWZzF2Q+pxC5l2qv8+Ag+/0j/bThSMqqCsfNdFEkU61sxR5PPF5feoKTSCLA+7YCCAVtYAgWzce1AoIxCQF8v2f49tZReufDWdpFIpd7OcV/QYaj5qyWVTWe/nu0ztYUiuJlRQwS02yIhcPk/TrEUxE0ImmwvzCI3iAZTp9ORnDcgjKfoeI6xjcqXbCLMw5mt20GchC9AgkzKu2rgG+gOHPC6cjpogJnIxPwPHxdB3se13dLY/mXYqHepY2hicwzkoX3MdrGjC22ti0r+yB+38W6mnRHl7QUhKhtqB04pqooOPwA2ytt9vnj0apVGl89s9XNAM6IRp5NmDJV0YaD4mYMy7cyBr9qNGdfhSmyWHVpgUWlqhBNR0QITV2avit0nuKt0uHY2jBRkqXlY3FvvlFd8n2VV7DdgdsXt3j00yl8zlIUTrEcXc8p2l30etLQ+dHeqZ/sBjgUtotgVoI9dny7qZioc7d5Q/BG5KkB6sfoR7533Y6FQUNbxv5LtEZ4rVNW3qUeMgGhicGSHOpzdKSzBL8+1sZfCksdVD/iXzrv4p+ha5/JogQx807c31NExjhMGJ+jHaw==' >> ~/.ssh/known_hosts && ssh -o ProxyCommand='cloudflared access tcp --hostname https://dispatch-hopkins-pmc-limitations.trycloudflare.com' emmanuel@dev
+
+Run the following command to connect without verification (DANGER!):
+    ssh -o ProxyCommand='cloudflared access tcp --hostname https://dispatch-hopkins-pmc-limitations.trycloudflare.com' -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=accept-new emmanuel@dev
+
+
 ```
+
+You can then run one of the `ssh` commands printed out on the console to access
+your directory. Remember that establishing a tunnel might take a few seconds,
+seconds under which `ssh` access will not work. Once logged in, your prompt
+should reflect a hostname that is called after the name of the directory where
+you created the container. This is to make it easier to differentiate between
+several such environments. Inside the container, you will have the same username
+as outside.
+
+
+The entrypoint of the Dockerfile configures and creates a userspace SSH daemon,
+and establishes a guest tunnel using [cloudflared]. The SSH daemon automatically
+picks authorised keys from any user (yours!) at github, thus restricting access
+to that user only.
 
   [tunnel]: https://developers.cloudflare.com/cloudflare-one/connections/connect-apps/do-more-with-tunnels/trycloudflare/
   [cloudflared]: https://github.com/cloudflare/cloudflared
-  [XDG]: https://specifications.freedesktop.org/basedir-spec/basedir-spec-latest.html
+  [remote]: https://code.visualstudio.com/docs/remote/ssh
 
 ## Tunnelled SSHd
 
@@ -81,8 +101,8 @@ ssh \
 ## VS Code
 
 The [`Dockerfile`](./Dockerfile) adds just enough packages to make development
-environments created using this image to be used with the remote extension of VS
-code. You will have to create a Docker volume that will be used to store the
+environments created using this image to be used with the [remote] extension of
+VS code. You will have to create a Docker volume that will be used to store the
 code for the `vscode-server` in the container. The content of this volume needs
 to be owned by your user.
 
@@ -125,12 +145,15 @@ As the raw `docker` commands are bit complex, this projects comes with a
 installation somewhere in the `$PATH`. The wrapper will:
 
 1. Automatically pull the latest image of this project at the GHCR.
-2. Setup a Docker volume unique for your local user, in order to facilitate
+2. Arrange for the current directory to only be writable by your user, this is a
+   **mandatory** requirement for being able to setup and run a userspace SSH
+   daemon in the current directory.
+3. Setup a Docker volume unique for your local user, in order to facilitate
    using that container as a VS Code [remote](#vs-code).
-3. When called without arguments, the wrapper will collect your `git` email and
+4. When called without arguments, the wrapper will collect your `git` email and
    name and try using them to look for your GitHub handle using the [search]
    API.
-4. Start a Docker container in the background with either the GitHub handle
+5. Start a Docker container in the background with either the GitHub handle
    discovered above, or the remaining arguments, as is.
    + Unless specified otherwise, the hostname of the SSH daemon will be the name
      of the directory where the wrapper was started from. This is to better
@@ -138,32 +161,24 @@ installation somewhere in the `$PATH`. The wrapper will:
    + Unless impossible or configured otherwise the wrapper will arrange for the
      `docker` client to be accessible and fully working from within the
      container, thus providing access to the local `docker` daemon.
+   + The wrapper should carry on your current shell into the container, as long
+     as the container has its binary, e.g. `/bin/bash`.
    + Unless configured otherwise, the wrapper will arrange for the SSH server to
      be compatible with the VS Code Remote extension.
 5. Wait for the container and tunnel to be ready and extract tunnel information
    from the Docker logs.
 
-Provided the wrapper is accessible through your `$PATH`, running it with the
-`-v` option should provide output similar to the following:
+Provided you have the [XDG] directory `$HOME/.local/bin` in your account, run
+the following to install the wrapper and make it available as `cf-sshd.sh` under
+the `$PATH`.
 
-```console
-emmanuel@localhost:~/dev/projects/foss/efrecon/sshd-cloudflared> cf-sshd.sh -v
-[cf-sshd.sh] [NFO] [20220912-100912] Creating Docker volume vscode-server-emmanuel to store VS Code server
-[cf-sshd.sh] [NFO] [20220912-100914] Pulling latest image ghcr.io/efrecon/sshd-cloudflared:latest
-[cf-sshd.sh] [WRN] [20220912-100919] Could not match 'efrecon@XXXXXXXXXX' to user at GitHub
-[cf-sshd.sh] [NFO] [20220912-100919] Matched 'Emmanuel Frecon' to 'efrecon' at GitHub
-[cf-sshd.sh] [NFO] [20220912-100919] Will get SSH keys for GitHub user efrecon
-[cf-sshd.sh] [NFO] [20220912-100920] Waiting for tunnel establishment...
-[cf-sshd.sh] [NFO] [20220912-100926] Running in container 0588896c2a0ea5d034e590b019002e375113d8664fdf7dd857aee5c213d2f697
-
-
-Run the following command to connect:
-    ssh-keygen -R sshd-cloudflared && echo 'sshd-cloudflared ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAACAQCndeSVJpQ13ZRjoZrMLN7oaUh6D/rWBorWiG/jLERGEHHYFJDVR2t8G2GYAAfp8ESECMgrpv3hHBG/0vBtxj0klSDc4+tDpAOt8qnB+rJ6Huh8Z61I1Pxrg5gc1gtSH5dROan8ys5K+KaITn0UbZI+M5dZ5qdRgCC8Tzk0ofzsYNot7O6Ad/b/7jVFoejyOZs2XpnI2Bke3b9kUo9C1QhdRHc7gorxtl2QK22xm4VUJrWF4Q4hFu3lz20y9vscLGdYE/YytstZo+c9wWH3fdAJNmgVOhFczAJhavQIitBhR8dEdWsGV9jSpAUjFHfn4wbbnALI4ORB4oTlT4oA/LTKt6RU09k+IoGFUM5aBVMPNkL0SmaQf1plPfuoi0edAc6BDSW9rIiBQiRExrFlFukMsRop8yCtJNXYrYp0SW/DDYeNDkqP3xDHFO0KowTXlDTkG9RwDGtZn9vE4NbBFx1TB2dsoRtOsW9g8AZdAN+4lNIxGELNrO77s5g+rmT6gCPv9oh0v64mTfB2k8C54Pa6vd4Ys+CHZ1AW65cAQOePvzQpY9g2cvNwQg5+e1X8F1/A0Cd8BCg2edFf8vnl2jcTgdgrfy1c/zaqh3pBQ3zg8e1iHAcWlSI2nXm1GZ3JIJ9+OHNf/kJKI5ZIfs32/JvW9JTPlHhLqrS11Q7bKIZsxQ==' >> ~/.ssh/known_hosts && ssh -o ProxyCommand='cloudflared access tcp --hostname https://involve-upgrades-remember-indicated.trycloudflare.com' emmanuel@sshd-cloudflared
-
-Run the following command to connect without verification (DANGER!):
-    ssh -o ProxyCommand='cloudflared access tcp --hostname https://involve-upgrades-remember-indicated.trycloudflare.com' emmanuel@sshd-cloudflared -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=accept-new
-
-
+```shell
+curl \
+  --location \
+  --silent \
+  --output "$HOME/.local/bin/cf-sshd.sh" \
+  https://raw.githubusercontent.com/efrecon/sshd-cloudflared/main/cf-sshd.sh && \
+  chmod u+x "$HOME/.local/bin/cf-sshd.sh"
 ```
 
 When searching for user details at GitHub fails, you will have to provide this
@@ -181,6 +196,7 @@ flags exist to tweak its behaviour to your needs if necessary. Calling it with
 the `-h` flag will print help over the dash-led options and flags that it
 supports, as well as the environment variables that it recognises.
 
+  [XDG]: https://specifications.freedesktop.org/basedir-spec/basedir-spec-latest.html
   [search]: https://docs.github.com/en/search-github/searching-on-github/searching-users
 
 ## Manual Cleanup
@@ -199,3 +215,62 @@ Part of this code is inspired by [this] project.
 
   [this]: https://github.com/valeriangalliat/action-sshd-cloudflared
 
+## Development Notes
+
+To work on modifying this implementation, you will have to iteratively (re)build
+the images and use the local image for your tests.
+
+### Build Docker Images
+
+To build the docker images locally, run the following commands from this
+directory.
+
+```shell
+docker build -t ghcr.io/efrecon/sshd-cloudflared-base:latest -f Dockerfile.base .
+docker build -t ghcr.io/efrecon/sshd-cloudflared:latest -f Dockerfile .
+```
+
+Take a note of the identifier of the last image that was built, e.g.
+`552379793d65`
+
+### Run a Container
+
+Use the identifier of the last image built to run a container using the wrapper,
+e.g. as in the following command. The command also increases verbosity with the
+`-v` option, and exports the port of the SSH daemon locally to the host, at
+`2222`.
+
+```shell
+./cf-sshd.sh -i 552379793d65 -v -p 2222
+```
+
+### Login
+
+You should now be able to login into the container either through the
+instructions printed at the terminal, or directly via the exported port, e.g.
+with the following command, and provided that your local ssh client is setup
+with one of the keys at GitHub.
+
+```shell
+ssh localhost -p 2222
+```
+
+### Problems?
+
+When looking for problems, look for the Docker container that was created in the
+background, its logs will contain the logs from the entrypoint and also from all
+underlying services.
+
+Files that were automatically generated are generated in the directory which
+name is prefixed with `.cf-sshd_` under the current directory.
+
+### Dismantling
+
+Once done, remove the container in two steps, using the name that was
+automatically assigned to it by Docker, e.g. as with the following command. This
+gives the container a chance to remove the local directory that it created under
+the directory that was shared.
+
+```shell
+docker stop practical_agnesi && docker rm -v practical_agnesi
+```
