@@ -175,6 +175,16 @@ if [ "$#" = "0" ] && command -v git >/dev/null 2>&1; then
   fi
 fi
 
+# Fix permissions and access to current directory with a warning
+if ! stat -c %A "$(pwd)"|grep -q '[d-][r-][w-][x-][r-]-[x-][r-][w-][x-]'; then
+  warn "Removing group write permissions from current directory for proper SSH access!"
+  chmod g-w "$(pwd)"
+fi
+if ! stat -c %A "$(pwd)"|grep -q '[d-][r-][w-][x-][r-]-[x-][r-]-[x-]'; then
+  warn "Removing others write permissions from current directory for proper SSH access!"
+  chmod o-w "$(pwd)"
+fi
+
 # Create a container arranging for tunneled access to the current directory
 # through cloudflare. This recreates the arguments from the end for proper
 # quoting.
