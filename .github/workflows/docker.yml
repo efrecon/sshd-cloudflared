@@ -5,9 +5,7 @@ on:
   push:
     branches:
       - main
-      - master
-  schedule:
-    - cron: "0 0 * * *"
+      - feature/*
 
 jobs:
   ghcr:
@@ -27,8 +25,18 @@ jobs:
           username: ${{ github.repository_owner }}
           password: ${{ secrets.GITHUB_TOKEN }}
       -
-        name: Build and push
+        name: Build and push Base Image
         uses: docker/build-push-action@v3
         with:
-          push: true
+          push: ${{ env.GITHUB_REF_NAME == 'main' }}
+          file: Dockerfile.base
+          platforms: linux/amd64,linux/arm64,linux/i386
+          tags: ghcr.io/efrecon/sshd-cloudflared-base:latest
+      -
+        name: Build and push DevEnv Image
+        uses: docker/build-push-action@v3
+        with:
+          push: ${{ env.GITHUB_REF_NAME == 'main' }}
+          file: Dockerfile
+          platforms: linux/amd64,linux/arm64,linux/i386
           tags: ghcr.io/efrecon/sshd-cloudflared:latest
