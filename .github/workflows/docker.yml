@@ -10,6 +10,7 @@ on:
 jobs:
   ghcr:
     runs-on: ubuntu-latest
+    if: env.GITHUB_REF_NAME == 'main'
     steps:
       -
         name: Set up QEMU
@@ -26,21 +27,38 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
       -
         name: Build and push Base Image
-        id: base
         uses: docker/build-push-action@v3
         with:
-          push: ${{ env.GITHUB_REF_NAME == 'main' }}
-          load: ${{ env.GITHUB_REF_NAME != 'main' }}
+          push: true
           file: Dockerfile.base
           platforms: linux/amd64,linux/arm64,linux/i386
           tags: ghcr.io/efrecon/sshd-cloudflared-base:latest
       -
         name: Build and push DevEnv Image
-        id: devenv
         uses: docker/build-push-action@v3
         with:
-          push: ${{ env.GITHUB_REF_NAME == 'main' }}
-          load: ${{ env.GITHUB_REF_NAME != 'main' }}
+          push: true
           file: Dockerfile
           platforms: linux/amd64,linux/arm64,linux/i386
+          tags: ghcr.io/efrecon/sshd-cloudflared:latest
+  build:
+    runs-on: ubuntu-latest
+    if: env.GITHUB_REF_NAME != 'main'
+    steps:
+      -
+        name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+      -
+        name: Build Base Image
+        uses: docker/build-push-action@v3
+        with:
+          load: true
+          file: Dockerfile.base
+          tags: ghcr.io/efrecon/sshd-cloudflared-base:latest
+      -
+        name: Build DevEnv Image
+        uses: docker/build-push-action@v3
+        with:
+          load: true
+          file: Dockerfile
           tags: ghcr.io/efrecon/sshd-cloudflared:latest
