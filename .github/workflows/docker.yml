@@ -26,17 +26,21 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
       -
         name: Build and push Base Image
+        id: base
         uses: docker/build-push-action@v3
         with:
           push: ${{ env.GITHUB_REF_NAME == 'main' }}
+          load: ${{ env.GITHUB_REF_NAME != 'main' }}
           file: Dockerfile.base
           platforms: linux/amd64,linux/arm64,linux/i386
           tags: ghcr.io/efrecon/sshd-cloudflared-base:latest
       -
         name: Build and push DevEnv Image
+        id: devenv
         uses: docker/build-push-action@v3
         with:
           push: ${{ env.GITHUB_REF_NAME == 'main' }}
+          load: ${{ env.GITHUB_REF_NAME != 'main' }}
           file: Dockerfile
           platforms: linux/amd64,linux/arm64,linux/i386
           tags: ghcr.io/efrecon/sshd-cloudflared:latest
