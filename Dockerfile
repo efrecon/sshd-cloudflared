@@ -1,5 +1,5 @@
-ARG BASEIMAGE="sshd-cloudflared-base:latest"
-FROM ghcr.io/efrecon/${BASEIMAGE}
+ARG BASEIMAGE="ghcr.io/efrecon/sshd-cloudflared-base:latest"
+FROM ${BASEIMAGE}
 
 # Root for GitHub, hardly likely to change for a long while...
 ARG GITHUB_ROOT=https://github.com
