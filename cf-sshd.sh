@@ -203,6 +203,7 @@ set -- \
       --env "CF_SSHD_PREFIX=$prefix" \
       --env "CF_SSHD_KNOWN_HOST=$CF_SSHD_ENVIRONMENT" \
       --env "CF_SSHD_VERBOSE" \
+      --env "SHELL" \
       --hostname "$CF_SSHD_ENVIRONMENT" \
       "$@"
 c=$( docker container run "$@" )

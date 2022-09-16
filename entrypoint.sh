@@ -26,8 +26,14 @@ CF_SSHD_DIE=${CF_SSHD_DIE:-"7d"}
 # Path to the SSH daemon configuration template, should match the Dockerfile.
 CF_SSHD_TEMPLATE=${CF_SSHD_TEMPLATE:-"/usr/local/lib/sshd_config.tpl"}
 
-# Shell to force user into.
-CF_SSHD_SHELL=${CF_SSHD_SHELL:-"${SHELL:-"ash"}"}
+# Shell to force user into, when empty the entrypoint will try to pick from a
+# number of good candidates under the path
+CF_SSHD_SHELL=${CF_SSHD_SHELL:-"${SHELL:-""}"}
+
+# Shell candidates when no specific shell was provided. This defaults to the
+# same as the shell in Alpine, but should manage to provide some shell in most
+# cases.
+CF_SSHD_SHELL_CANDIDATES=${CF_SSHD_SHELL_CANDIDATES:-"ash bash zsh sh"}
 
 # Prefix to add to all lines that we output on stdout
 CF_SSHD_PREFIX=${CF_SSHD_PREFIX:-""}
@@ -48,7 +54,7 @@ while getopts "g:s:vh-" opt; do
   case "$opt" in
     g) # GitHub account
       CF_SSHD_GITHUB="$OPTARG";;
-    s) # Shell to use for the user, needs to be installed!
+    s) # Shell to use for the user, needs to be installed! Empty for picking among good defaults.
       CF_SSHD_SHELL="$OPTARG";;
     v) # Turn on verbosity, will otherwise log on errors/warnings only
       CF_SSHD_VERBOSE=1;;
@@ -114,40 +120,63 @@ cleanup() {
 
 check_command curl jq cloudflared
 
-# Make temporary directory inside account, to keep sshd happy
+# Pick a shell when none was provided
+if [ -z "$CF_SSHD_SHELL" ]; then
+  for sh in $CF_SSHD_SHELL_CANDIDATES; do
+    if command -v "$sh" >/dev/null; then
+      CF_SSHD_SHELL=$(command -v "$sh")
+      break
+    fi
+  done
+
+  if [ -n "$CF_SSHD_SHELL" ]; then
+    verbose "Picked $CF_SSHD_SHELL as shell for SSH daemon user"
+  else
+    error "Cannot find any shell for SSH settings! Tried: $CF_SSHD_SSH_CANDIDATES"
+  fi
+fi
+
+# Make temporary directory inside account, to keep sshd happy. Using mktemp and
+# use the temporary directory instead does not work as the ssh daemon explores
+# the hierarchy upwards.
 CF_SSHD_DIR="$(pwd)/.cf-sshd_$(head -c 16 /dev/urandom | base64 | tr -cd '[:alnum:]' | head -c 16)"
-mkdir -p "$CF_SSHD_DIR"
-chmod go-rwx "$CF_SSHD_DIR"
+
+# Inside "our" directory, create ANOTHER directory that will hold configuration
+# files for the SSH daemon. Make sure this directory is only accessible to our
+# user, not his/her group (or even worse: anyone on the system)
+CF_SSHD_SSHDIR=${CF_SSHD_DIR}/sshd-config
+mkdir -p "$CF_SSHD_SSHDIR"
+chmod go-rwx "$CF_SSHD_SSHDIR"
 verbose "Created directory $CF_SSHD_DIR for internal settings, will be cleaned up"
 
 # Create temporary directory (inside container) for logs
 CF_SSHD_LOGDIR=$(mktemp -d -t cf-sshd-logs-XXXXXX)
 
-verbose "SSHd settings in $CF_SSHD_DIR"
+verbose "SSHd settings in $CF_SSHD_SSHDIR"
 if [ -n "$CF_SSHD_GITHUB" ]; then
   verbose "Collecting public keys from github user $CF_SSHD_GITHUB"
   curl --silent --location "https://api.github.com/users/${CF_SSHD_GITHUB}/keys" |
-    jq -r '.[].key' > "${CF_SSHD_DIR}/authorized_keys"
-  chmod go-rwx "${CF_SSHD_DIR}/authorized_keys"
+    jq -r '.[].key' > "${CF_SSHD_SSHDIR}/authorized_keys"
+  chmod go-rwx "${CF_SSHD_SSHDIR}/authorized_keys"
 fi
 
-if ! grep -q . "${CF_SSHD_DIR}/authorized_keys"; then
+if ! grep -q . "${CF_SSHD_SSHDIR}/authorized_keys"; then
   error "Cannot initialise SSHd"
 fi
 
 verbose "Generating SSHd host keys"
-ssh-keygen -q -f "${CF_SSHD_DIR}/ssh_host_rsa_key" -N '' -b 4096 -t rsa
+ssh-keygen -q -f "${CF_SSHD_SSHDIR}/ssh_host_rsa_key" -N '' -b 4096 -t rsa
 
-verbose "Creating SSHd configuration at ${CF_SSHD_DIR}/sshd_config from $CF_SSHD_TEMPLATE"
+verbose "Creating SSHd configuration at ${CF_SSHD_SSHDIR}/sshd_config from $CF_SSHD_TEMPLATE"
 sed \
-  -e "s,\$PWD,${CF_SSHD_DIR},g" \
+  -e "s,\$PWD,${CF_SSHD_SSHDIR},g" \
   -e "s,\$USER,$(id -un),g" \
   -e "s,\$PORT,${CF_SSHD_PORT},g" \
   -e "s,\$SHELL,${CF_SSHD_SHELL},g" \
-  "$CF_SSHD_TEMPLATE" > "${CF_SSHD_DIR}/sshd_config"
+  "$CF_SSHD_TEMPLATE" > "${CF_SSHD_SSHDIR}/sshd_config"
 
 verbose "Starting SSHd server"
-/usr/sbin/sshd -f "${CF_SSHD_DIR}/sshd_config" -D -E "${CF_SSHD_LOGDIR}/sshd.log" &
+/usr/sbin/sshd -f "${CF_SSHD_SSHDIR}/sshd_config" -D -E "${CF_SSHD_LOGDIR}/sshd.log" &
 pid_sshd=$!
 _sublog "${CF_SSHD_LOGDIR}/sshd.log" "sshd" &
 
@@ -157,7 +186,7 @@ pid_cloudflared=$!
 _sublog "${CF_SSHD_LOGDIR}/cloudflared.log" "cloudflared" &
 
 url=$(while ! grep -o 'https://.*\.trycloudflare.com' "${CF_SSHD_LOGDIR}/cloudflared.log"; do sleep 1; done)
-public_key=$(cut -d' ' -f1,2 < "${CF_SSHD_DIR}/ssh_host_rsa_key.pub")
+public_key=$(cut -d' ' -f1,2 < "${CF_SSHD_SSHDIR}/ssh_host_rsa_key.pub")
 
 echo "${CF_SSHD_PREFIX}"
 echo "${CF_SSHD_PREFIX}"
