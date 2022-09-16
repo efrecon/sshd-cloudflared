@@ -58,6 +58,7 @@ jobs:
       -
         name: Build Base Image
         uses: docker/build-push-action@v3
+        id: base
         with:
           load: true
           file: Dockerfile.base
@@ -66,6 +67,8 @@ jobs:
         name: Build DevEnv Image
         uses: docker/build-push-action@v3
         with:
-          load: true
+          load: false
+          build-args: |
+            BASEIMAGE=${{ steps.base.outputs.imageid }}
           file: Dockerfile
           tags: ghcr.io/efrecon/sshd-cloudflared:latest
