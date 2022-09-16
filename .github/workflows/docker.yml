@@ -76,6 +76,6 @@ jobs:
         with:
           push: true
           build-args: |
-            BASEIMAGE=${{ localhost:5000/efrecon/sshd-cloudflared-base:latest }}
+            BASEIMAGE=localhost:5000/efrecon/sshd-cloudflared-base:latest
           file: Dockerfile
           tags: localhost:5000/efrecon/sshd-cloudflared:latest
