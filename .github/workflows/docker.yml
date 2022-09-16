@@ -10,7 +10,7 @@ on:
 jobs:
   ghcr:
     runs-on: ubuntu-latest
-    if: env.GITHUB_REF_NAME == 'main'
+    if: github.ref_name == 'main'
     steps:
       -
         name: Set up QEMU
@@ -43,7 +43,7 @@ jobs:
           tags: ghcr.io/efrecon/sshd-cloudflared:latest
   build:
     runs-on: ubuntu-latest
-    if: env.GITHUB_REF_NAME != 'main'
+    if: github.ref_name != 'main'
     steps:
       -
         name: Set up Docker Buildx
