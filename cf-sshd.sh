@@ -34,6 +34,10 @@ CF_SSHD_DOCKER=${CF_SSHD_DOCKER:-1}
 # purposes.
 CF_SSHD_PORT=${CF_SSHD_PORT:-""}
 
+# List of directorie/file patterns under the $HOME to mount automatically into
+# the container.
+CF_SSHD_AUTOMOUNT=${CF_SSHD_AUTOMOUNT:-".cdk* .aws .npm .local .git .docker"}
+
 usage() {
   # This uses the comments behind the options to show the help. Not extremly
   # correct, but effective and simple.
@@ -189,10 +193,13 @@ fi
 # through cloudflare. This recreates the arguments from the end for proper
 # quoting.
 prefix=$(head -c 16 /dev/urandom | base64 | tr -cd '[:alnum:]' | head -c 16)
+# First add Docker image and all command line arguments after the --, if any.
 set -- "$CF_SSHD_IMAGE" "$@"
+# Add the local volume to store the VS Code server implementation
 if [ -n "$CF_SSHD_VOLUME" ]; then
   set -- -v "${CF_SSHD_VOLUME}:${HOME}/.vscode-server" "$@"
 fi
+# Add the Docker socket, if any, together with the current Docker client binary.
 if [ "$CF_SSHD_DOCKER" = "1" ]; then
   set -- \
         --group-add "$(getent group docker|cut -d: -f 3)" \
@@ -200,9 +207,27 @@ if [ "$CF_SSHD_DOCKER" = "1" ]; then
         -v "$(command -v docker)":/usr/bin/docker:ro \
         "$@"
 fi
+# Export the SSH port, if requested to from the command-line
+# arguments/environment.
 if [ -n "$CF_SSHD_PORT" ]; then
   set -- -p "${CF_SSHD_PORT}:2222" "$@"
 fi
+# Automatically mount a number of "hidden" files and directory under the home
+# directory. This will work as long as the file name do not have line breaks.
+newline=$(printf n\\n|tr n \\n);  # Generates a newline
+for ptn in $CF_SSHD_AUTOMOUNT; do
+  while IFS="$newline" read -r path; do
+    verbose "Automounting $path into container"
+    set -- -v "${path}:${path}:rw" "$@"
+  done<<EOF
+$(find "$HOME" -maxdepth 1 -name "$ptn")
+EOF
+done
+# Add all remaining arguments, i.e. mount as the same user, provide user and
+# group database information from the host and pass forward a number of
+# environment variables to the entrypoint. The prefix is a random string that
+# will be appended to the output lines where to grab the ssh connection
+# information.
 set -- \
       -d \
       --user "$(id -u):$(id -g)" \
@@ -216,6 +241,7 @@ set -- \
       --env "SHELL" \
       --hostname "$CF_SSHD_ENVIRONMENT" \
       "$@"
+# NOW: start the container in the background
 c=$( docker container run "$@" )
 
 # Wait for tunnel information
