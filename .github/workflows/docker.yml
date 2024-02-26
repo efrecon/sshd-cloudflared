@@ -73,7 +73,9 @@ jobs:
           push: true
           file: Dockerfile
           platforms: linux/amd64,linux/arm64,linux/i386
-          tags: ghcr.io/efrecon/sshd-cloudflared:latest
+          tags: |
+            ghcr.io/${{ github.repository }}:${{ needs.version.outputs.version }}
+            ghcr.io/${{ github.repository }}:latest
   # When pushing to feature branches, we test stuff on the platform of the
   # runner only, using a local registry so as to be able to push and pull to
   # Docker from the builder steps.
@@ -100,7 +102,7 @@ jobs:
           push: true
           file: Dockerfile.cloudflared
           tags: |
-            localhost:5000/efrecon/${{ github.repository_owner }}/cloudflared:${{ needs.version.outputs.version }}
+            localhost:5000/${{ github.repository_owner }}/cloudflared:${{ needs.version.outputs.version }}
           build-args: |
             CLOUDFLARED_VERSION=${{ needs.version.outputs.version }}
       -
@@ -111,16 +113,18 @@ jobs:
           push: true
           file: Dockerfile.base
           tags: |
-            localhost:5000/efrecon/${{ github.repository }}-base:${{ needs.version.outputs.version }}
-            localhost:5000/efrecon/${{ github.repository }}-base:latest
+            localhost:5000/${{ github.repository }}-base:${{ needs.version.outputs.version }}
+            localhost:5000/${{ github.repository }}-base:latest
           build-args: |
-            CLOUDFLARED_VERSION=${{ needs.version.outputs.version }}
+            BASEIMAGE=localhost:5000/${{ github.repository_owner }}/cloudflared:${{ needs.version.outputs.version }}
       -
         name: Build DevEnv Image
         uses: docker/build-push-action@v3
         with:
           push: true
           build-args: |
-            BASEIMAGE=localhost:5000/efrecon/sshd-cloudflared-base:latest
+            BASEIMAGE=localhost:5000/${{ github.repository }}-base:${{ needs.version.outputs.version }}
           file: Dockerfile
-          tags: localhost:5000/efrecon/sshd-cloudflared:latest
+          tags: |
+            localhost:5000/${{ github.repository }}:${{ needs.version.outputs.version }}
+            localhost:5000/${{ github.repository }}:latest
