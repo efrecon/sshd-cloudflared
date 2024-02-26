@@ -52,6 +52,13 @@ jobs:
       -
         name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
+        if: ${{ startsWith(inputs.registry, 'localhost') }}
+        with:
+          driver-opts: network=host
+      -
+        name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+        if: ${{ ! startsWith(inputs.registry, 'localhost') }}
       -
         name: Check Presence
         id: present
