@@ -8,11 +8,38 @@ on:
       - feature/*
 
 jobs:
+  version:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      -
+        name: Checkout
+        uses: actions/checkout@v4
+      -
+        name: Latest Version
+        id: version
+        run: |
+          . ./.github/bin/reg-tags/image_api.sh
+
+          _releases() {
+            # Ask GH for the list of releases matching the tag pattern, then fool the sort
+            # -V option to properly understand semantic versioning. Arrange for latest
+            # version to be at the top. See: https://stackoverflow.com/a/40391207
+            github_releases -r 'v?[0-9]+\.[0-9]+\.[0-9]+' "$1" |
+              sed '/-/!{s/$/_/}' |
+              sort -Vr |
+              sed 's/_$//'
+          }
+          version=$(_releases cloudflare/cloudflared | head -n 1)
+          printf "version=%s\n" "$version" >> "$GITHUB_OUTPUT"
+
   # When pushing to the main branch, we (re)generate images, tagged with
   # "latest"
   ghcr:
     runs-on: ubuntu-latest
     if: github.ref_name == 'main'
+    needs: version
     steps:
       -
         name: Login to GHCR
@@ -34,7 +61,11 @@ jobs:
           push: true
           file: Dockerfile.base
           platforms: linux/amd64,linux/arm64,linux/i386
-          tags: ghcr.io/efrecon/sshd-cloudflared-base:latest
+          tags: |
+            ghcr.io/${{ github.repository }}-base:${{ needs.version.outputs.version }}
+            ghcr.io/${{ github.repository }}-base:latest
+          build-args: |
+            CLOUDFLARED_VERSION=${{ needs.version.outputs.version }}
       -
         name: Build and push DevEnv Image
         uses: docker/build-push-action@v3
@@ -49,6 +80,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
     if: github.ref_name != 'main'
+    needs: version
     services:
       registry:
         image: registry:2
@@ -61,13 +93,28 @@ jobs:
         with:
           driver-opts: network=host
       -
+        name: Build cloudflared Image
+        uses: docker/build-push-action@v3
+        id: base
+        with:
+          push: true
+          file: Dockerfile.cloudflared
+          tags: |
+            localhost:5000/efrecon/${{ github.repository_owner }}/cloudflared:${{ needs.version.outputs.version }}
+          build-args: |
+            CLOUDFLARED_VERSION=${{ needs.version.outputs.version }}
+      -
         name: Build Base Image
         uses: docker/build-push-action@v3
         id: base
         with:
           push: true
           file: Dockerfile.base
-          tags: localhost:5000/efrecon/sshd-cloudflared-base:latest
+          tags: |
+            localhost:5000/efrecon/${{ github.repository }}-base:${{ needs.version.outputs.version }}
+            localhost:5000/efrecon/${{ github.repository }}-base:latest
+          build-args: |
+            CLOUDFLARED_VERSION=${{ needs.version.outputs.version }}
       -
         name: Build DevEnv Image
         uses: docker/build-push-action@v3
