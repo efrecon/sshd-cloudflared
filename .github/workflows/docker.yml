@@ -55,17 +55,39 @@ jobs:
         name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
       -
+        name: Check Presence
+        id: present
+        run: |
+          if docker manifest inspect "ghcr.io/${{ github.repository_owner }}/cloudflared:${{ needs.version.outputs.version }}" 2>/dev/null; then
+            printf "present=true\n" >> "$GITHUB_OUTPUT"
+          else
+            printf "present=false\n" >> "$GITHUB_OUTPUT"
+          fi
+      -
+        name: Build cloudflared Image
+        uses: docker/build-push-action@v3
+        id: cloudflared
+        if: steps.present.outputs.present == 'false'
+        with:
+          push: true
+          file: Dockerfile.cloudflared
+          platforms: linux/amd64,linux/arm64,linux/i386
+          tags: |
+            ghcr.io/${{ github.repository_owner }}/cloudflared:${{ needs.version.outputs.version }}
+          build-args: |
+            CLOUDFLARED_VERSION=${{ needs.version.outputs.version }}
+      -
         name: Build and push Base Image
         uses: docker/build-push-action@v3
         with:
           push: true
           file: Dockerfile.base
           platforms: linux/amd64,linux/arm64,linux/i386
+          build-args: |
+            BASEIMAGE=ghcr.io/${{ github.repository_owner }}/cloudflared:${{ needs.version.outputs.version }}
           tags: |
             ghcr.io/${{ github.repository }}-base:${{ needs.version.outputs.version }}
             ghcr.io/${{ github.repository }}-base:latest
-          build-args: |
-            CLOUDFLARED_VERSION=${{ needs.version.outputs.version }}
       -
         name: Build and push DevEnv Image
         uses: docker/build-push-action@v3
@@ -73,6 +95,8 @@ jobs:
           push: true
           file: Dockerfile
           platforms: linux/amd64,linux/arm64,linux/i386
+          build-args: |
+            BASEIMAGE=ghcr.io/${{ github.repository }}-base:${{ needs.version.outputs.version }}
           tags: |
             ghcr.io/${{ github.repository }}:${{ needs.version.outputs.version }}
             ghcr.io/${{ github.repository }}:latest
@@ -95,9 +119,19 @@ jobs:
         with:
           driver-opts: network=host
       -
+        name: Check Presence
+        id: present
+        run: |
+          if docker manifest inspect "ghcr.io/${{ github.repository_owner }}/cloudflared:${{ needs.version.outputs.version }}" 2>/dev/null; then
+            printf "present=true\n" >> "$GITHUB_OUTPUT"
+          else
+            printf "present=false\n" >> "$GITHUB_OUTPUT"
+          fi
+      -
         name: Build cloudflared Image
         uses: docker/build-push-action@v3
         id: cloudflared
+        if: steps.present.outputs.present == 'false'
         with:
           push: true
           file: Dockerfile.cloudflared
