@@ -41,7 +41,7 @@ jobs:
           LABEL_URL: ${{ github.server_url }}/${{ github.repository }}
           LABEL_DESCRIPTION: Cloudflare Tunnel client
           LABEL_TITLE: cloudflared
-        run: ./.github/bin/build+push
+        run: ./.github/bin/build+push.sh
   # When pushing to feature branches, we test stuff on the platform of the
   # runner only, using a local registry so as to be able to push and pull to
   # Docker from the builder steps.
@@ -70,4 +70,4 @@ jobs:
           LABEL_URL: ${{ github.server_url }}/${{ github.repository }}
           LABEL_DESCRIPTION: Cloudflare Tunnel client
           LABEL_TITLE: cloudflared
-        run: ./.github/bin/build+push
+        run: ./.github/bin/build+push.sh
