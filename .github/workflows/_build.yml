@@ -69,7 +69,7 @@ jobs:
             printf "present=false\n" >> "$GITHUB_OUTPUT"
           fi
       -
-        name: Build cloudflared Image
+        name: Build and push cloudflared Image
         uses: docker/build-push-action@v5
         id: cloudflared
         if: steps.present.outputs.present == 'false'
@@ -94,7 +94,7 @@ jobs:
             ${{ inputs.registry }}/${{ github.repository }}-base:${{ inputs.version }}
             ${{ inputs.registry }}/${{ github.repository }}-base:latest
       -
-        name: Build and push DevEnv Image
+        name: Build and push Main Image
         uses: docker/build-push-action@v5
         with:
           push: true
