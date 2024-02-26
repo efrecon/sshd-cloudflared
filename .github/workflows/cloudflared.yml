@@ -6,6 +6,9 @@ on:
     branches:
       - main
       - feature/*
+  schedule:
+    # Midnight on Sunday and Wednesday
+    - cron: "0 0 * * 0,3"
 
 jobs:
   # When pushing to the main branch, we (re)generate images, tagged with
