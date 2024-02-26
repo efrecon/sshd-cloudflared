@@ -1,0 +1,42 @@
+ARG ALPINE_VERSION=3.19.1
+
+FROM alpine:${ALPINE_VERSION}
+
+# Root for GitHub, hardly likely to change for a long while...
+ARG GITHUB_ROOT=https://github.com
+
+# Build time arguments for where to look for the releases of cloudflared and the
+# version to use.
+ARG CLOUDFLARED_DOWNLOAD=${GITHUB_ROOT}/cloudflare/cloudflared/releases/download
+ARG CLOUDFLARED_VERSION=2023.5.0
+
+
+# Metadata
+LABEL MAINTAINER=efrecon+github@gmail.com
+LABEL org.opencontainers.image.title="cloudflared"
+LABEL org.opencontainers.image.description="Dockerised cloudflared binary"
+LABEL org.opencontainers.image.authors="Emmanuel Frécon <efrecon+github@gmail.com>"
+LABEL org.opencontainers.image.url="$GITHUB_ROOT/efrecon/sshd-cloudflared"
+LABEL org.opencontainers.image.documentation="$GITHUB_ROOT/efrecon/sshd-cloudflared/README.md"
+LABEL org.opencontainers.image.source="$GITHUB_ROOT/efrecon/sshd-cloudflared"
+
+
+# Install curl and download the cloudflared binary at the requested version.
+RUN apk add --no-cache curl && \
+    case "$(uname -m)" in \
+        "x86_64")   CLOUDFLARED_ARCH=amd64;; \
+        "i686")     CLOUDFLARED_ARCH=386;; \
+        "aarch64")  CLOUDFLARED_ARCH=arm64;; \
+        "armv7l")   CLOUDFLARED_ARCH=arm;; \
+    esac && \
+    CLOUDFLARED_URL="${CLOUDFLARED_DOWNLOAD}/$CLOUDFLARED_VERSION/cloudflared-$(uname -s|tr '[:upper:]' '[:lower:]')-${CLOUDFLARED_ARCH}" && \
+    printf "Downloading cloudflared binary release from: %s\n" "$CLOUDFLARED_URL" && \
+    curl \
+        --location \
+        --silent \
+        --show-error \
+        --output /usr/local/bin/cloudflared \
+        "$CLOUDFLARED_URL" && \
+    chmod a+x /usr/local/bin/cloudflared
+
+ENTRYPOINT [ "/usr/local/bin/cloudflared" ]

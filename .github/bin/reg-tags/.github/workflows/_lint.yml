@@ -1,0 +1,40 @@
+---
+name: Lint (Generic)
+
+on:
+  workflow_call:
+    inputs:
+      full:
+        description: |
+          Should the entire codebase be linted?
+        required: false
+        type: "string"
+        default: "false"
+    secrets:
+      token:
+        required: true
+        description: GitHub Token for access to repo
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+
+    name: Lint
+
+    steps:
+      -
+        name: Checkout Code
+        uses: actions/checkout@v2
+        with:
+          # Full git history is needed to get a proper list of changed files
+          # within `super-linter`
+          fetch-depth: 0
+
+      -
+        name: Lint Code
+        uses: github/super-linter/slim@v4
+        env:
+          VALIDATE_ALL_CODEBASE: "${{ inputs.full }}"
+          VALIDATE_JSCPD: "false"
+          DEFAULT_BRANCH: master
+          GITHUB_TOKEN: ${{ secrets.token }}

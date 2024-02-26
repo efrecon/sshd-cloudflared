@@ -1,0 +1,14 @@
+---
+name: "Lint/manual"
+
+on:
+  # Run manually
+  workflow_dispatch:
+
+jobs:
+  lint:
+    uses: ./.github/workflows/_lint.yml
+    with:
+      full: "true"
+    secrets:
+      token: ${{ secrets.GITHUB_TOKEN }}
