@@ -117,7 +117,7 @@ for tag in $(_releases "$GH_PROJECT"); do
       set -- \
         --tag "${DOCKER_REPO}:$tag" \
         --platform "$PLATFORMS" \
-        --build-arg CSHARPIER_VERSION="$tag" \
+        --build-arg CLOUDFLARED_VERSION="$tag" \
         --label "${OCINS}.revision=$SOURCE_COMMIT" \
         "$BUILDX_OPERATION"
       # Add latest tag when relevant
@@ -130,13 +130,7 @@ for tag in $(_releases "$GH_PROJECT"); do
       if [ -n "$LABEL_DESCRIPTION" ]; then set -- --label "${OCINS}.description=$LABEL_DESCRIPTION" "$@"; fi
       if [ -n "$LABEL_URL" ]; then set -- --label "${OCINS}.url=$LABEL_URL" "$@"; fi
       if [ -n "$LABEL_TITLE" ]; then set -- --label "${OCINS}.title=$LABEL_TITLE" "$@"; fi
-      # Fix dotnet version, migrate to LTS 8.0 starting from 0.26.2. See:
-      # https://github.com/belav/cloudflared/releases/tag/0.26.2
-      if [ "$(img_version "${tag#v}")" -ge "$(img_version "0.26.2")" ]; then
-        set -- \
-          --build-arg DOTNET_VERSION="8.0" \
-          "$@"
-      fi
+
       # build (and push) according to arguments and at the right tags.
       docker buildx build "$@" .
     else
