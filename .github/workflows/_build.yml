@@ -39,8 +39,9 @@ jobs:
           - 5000:5000
     steps:
       -
-        name: Login to GHCR
+        name: Login at registry
         uses: docker/login-action@v3
+        if: ! startsWith(inputs.registry, 'localhost')
         with:
           registry: ${{ inputs.registry }}
           username: ${{ secrets.username }}
