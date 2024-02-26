@@ -95,7 +95,7 @@ jobs:
       -
         name: Build cloudflared Image
         uses: docker/build-push-action@v3
-        id: base
+        id: cloudflared
         with:
           push: true
           file: Dockerfile.cloudflared
