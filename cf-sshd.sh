@@ -38,6 +38,9 @@ CF_SSHD_PORT=${CF_SSHD_PORT:-""}
 # the container.
 CF_SSHD_AUTOMOUNT=${CF_SSHD_AUTOMOUNT:-".cdk* .aws .npm .local .git .docker"}
 
+# Should we wait until container has ended
+CF_SSHD_WAIT=${CF_SSHD_WAIT:-0}
+
 usage() {
   # This uses the comments behind the options to show the help. Not extremly
   # correct, but effective and simple.
@@ -50,7 +53,7 @@ usage() {
   exit "${1:-0}"
 }
 
-while getopts "e:i:l:p:rvh-" opt; do
+while getopts "e:i:l:p:wrvh-" opt; do
   case "$opt" in
     e) # Name of development environment, e.g. name of host in container and SSHd config. Default: directory name
       CF_SSHD_ENVIRONMENT="$OPTARG";;
@@ -62,6 +65,8 @@ while getopts "e:i:l:p:rvh-" opt; do
       CF_SSHD_IMAGE="$OPTARG";;
     p) # Local port where to make available the SSH daemon. Default: none
       CF_SSHD_PORT="$OPTARG";;
+    w) # Wait until container has ended before exiting
+      CF_SSHD_WAIT=1;;
     -) # End of options, everything after is passed to the entrypoint of the Docker image.
       break;;
     v) # Turn on verbosity, will otherwise log on errors/warnings only
@@ -250,3 +255,8 @@ while ! docker logs "$c" 2>&1 | grep -qE "^${prefix}"; do sleep 0.25; done
 
 verbose "Running in container $c"
 docker logs "$c" 2>&1 | grep -E "^${prefix}" | sed -E "s/^${prefix}//g"
+
+if [ "$CF_SSHD_WAIT" = "1" ]; then
+  verbose "Waiting for container to end..."
+  docker container wait "$c"
+fi
