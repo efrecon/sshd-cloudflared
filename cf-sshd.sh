@@ -223,8 +223,10 @@ fi
 newline=$(printf n\\n|tr n \\n);  # Generates a newline
 for ptn in $CF_SSHD_AUTOMOUNT; do
   while IFS="$newline" read -r path; do
-    verbose "Automounting $path into container"
-    set -- -v "${path}:${path}:rw" "$@"
+    if [ -n "$path" ]; then
+      verbose "Automounting $path into container"
+      set -- -v "${path}:${path}:rw" "$@"
+    fi
   done<<EOF
 $(find "$HOME" -maxdepth 1 -name "$ptn")
 EOF
