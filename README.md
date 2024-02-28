@@ -54,8 +54,7 @@ To debug a workflow, add a step similar to the following:
 ```yaml
   - name: SSHd
     id: debug
-    run: |
-      curl -sSL https://github.com/efrecon/sshd-cloudflared/raw/main/install.sh | sh -s -- -r -i "entrypoint.sh" -- -g "${{ github.actor }}"
+    uses: efrecon/sshd-cloudflared@main
 ```
 
 This will [install](#installing-the-wrapper) all dependencies and run the
