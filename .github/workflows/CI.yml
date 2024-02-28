@@ -8,18 +8,6 @@ on:
       - feature/*
 
 jobs:
-  version:
-    runs-on: ubuntu-latest
-    outputs:
-      version: ${{ steps.version.outputs.latest }}
-    steps:
-      -
-        name: Latest Version
-        id: version
-        uses: efrecon/gh-action-releases@main
-        with:
-          project: cloudflare/cloudflared
-
   # When pushing to the main branch, we (re)generate images, tagged with
   # "latest"
   ghcr:
@@ -27,12 +15,10 @@ jobs:
     with:
       registry: ghcr.io
       platforms: linux/amd64,linux/arm64,linux/i386
-      version: ${{ needs.version.outputs.version }}
     secrets:
       username: ${{ github.repository_owner }}
       password: ${{ secrets.GITHUB_TOKEN }}
     if: github.ref_name == 'main'
-    needs: version
 
   # When pushing to feature branches, we test stuff on the platform of the
   # runner only, using a local registry so as to be able to push and pull to
@@ -42,6 +28,4 @@ jobs:
     with:
       registry: localhost:5000
       platforms: linux/amd64
-      version: ${{ needs.version.outputs.version }}
     if: github.ref_name != 'main'
-    needs: version
