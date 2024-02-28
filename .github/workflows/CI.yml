@@ -37,7 +37,7 @@ jobs:
   # When pushing to feature branches, we test stuff on the platform of the
   # runner only, using a local registry so as to be able to push and pull to
   # Docker from the builder steps.
-  build:
+  dev:
     uses: ./.github/workflows/_build.yml
     with:
       registry: localhost:5000
