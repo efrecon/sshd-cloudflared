@@ -142,6 +142,7 @@ fi
 # GitHub search API.
 if [ "$#" = "0" ] && command -v git >/dev/null 2>&1; then
   verbose "No GitHub handle given, will try to guess from git settings"
+  set -x
   handle=;       # Will be the GitHub username, if any
   # Pick user information from gt
   email=$(git config user.email)
