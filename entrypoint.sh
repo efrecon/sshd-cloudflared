@@ -175,7 +175,7 @@ ssh-keygen -q -f "${CF_SSHD_SSHDIR}/ssh_host_rsa_key" -N '' -b 4096 -t rsa
 
 # Generate SSHd configuration template when missing.
 if [ -z "$CF_SSHD_TEMPLATE" ] || ! [ -f "$CF_SSHD_TEMPLATE" ]; then
-  warning "No SSHd template found at $CF_SSHD_TEMPLATE, using internal default"
+  warn "No SSHd template found at $CF_SSHD_TEMPLATE, using internal default"
   CF_SSHD_TEMPLATE=$(mktemp)
   cat <<'EOF' > "$CF_SSHD_TEMPLATE"
 LogLevel DEBUG3
