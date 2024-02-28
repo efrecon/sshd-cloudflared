@@ -133,8 +133,10 @@ download() {
 }
 
 install_binary() {
-  as_root download "$1" "${3:-"/usr/local/bin"}/${2:-$(basename "$1")}"
-  as_root chmod +x "${3:-"/usr/local/bin"}/${2:-$(basename "$1")}"
+  _bin=$(mktemp)
+  download "$1" "$_bin"
+  chmod +x "$_bin"
+  as_root mv -f "$_bin" "${3:-"/usr/local/bin"}/${2:-$(basename "$1")}"
 }
 
 github_releases() {
