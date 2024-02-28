@@ -16,5 +16,5 @@ jobs:
 
       - name: SSHd
         run: |
-          curl -sSL https://github.com/efrecon/sshd-cloudflared/raw/feature/installer/install.sh | sh -- -b feature/installer -r -- -w
+          curl -sSL https://github.com/efrecon/sshd-cloudflared/raw/feature/installer/install.sh | sh -s -- -b feature/installer -r -- -w
 
