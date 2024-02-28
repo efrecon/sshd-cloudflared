@@ -28,8 +28,6 @@ Run the following command to connect:
 
 Run the following command to connect without verification (DANGER!):
     ssh -o ProxyCommand='cloudflared access tcp --hostname https://dispatch-hopkins-pmc-limitations.trycloudflare.com' -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=accept-new emmanuel@dev
-
-
 ```
 
 You can then run one of the `ssh` commands printed out on the console to access
