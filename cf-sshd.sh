@@ -134,7 +134,7 @@ fi
 
 if printf %s\\n "$CF_SSHD_IMAGE" | grep -Eq ':latest$'; then
   verbose "Pulling latest image $CF_SSHD_IMAGE"
-  docker image pull -q "$CF_SSHD_IMAGE" >/dev/null
+  docker image pull "$CF_SSHD_IMAGE"
 fi
 
 
