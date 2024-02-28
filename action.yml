@@ -15,5 +15,5 @@ runs:
       id: debug
       shell: bash
       run: |
-        curl -sSL "https://github.com/efrecon/sshd-cloudflared/raw/${{github.action_ref}}/install.sh" |
+        curl -sSL "https://github.com/efrecon/sshd-cloudflared/raw/${{github.action_ref}}/install.sh" | \
           sh -s -- -r -i "entrypoint.sh" -- -g "${{ github.actor }}"
