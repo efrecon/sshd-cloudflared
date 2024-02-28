@@ -173,13 +173,54 @@ fi
 verbose "Generating SSHd host keys"
 ssh-keygen -q -f "${CF_SSHD_SSHDIR}/ssh_host_rsa_key" -N '' -b 4096 -t rsa
 
-verbose "Creating SSHd configuration at ${CF_SSHD_SSHDIR}/sshd_config from $CF_SSHD_TEMPLATE"
-sed \
-  -e "s,\$PWD,${CF_SSHD_SSHDIR},g" \
-  -e "s,\$USER,$(id -un),g" \
-  -e "s,\$PORT,${CF_SSHD_PORT},g" \
-  -e "s,\$SHELL,${CF_SSHD_SHELL},g" \
-  "$CF_SSHD_TEMPLATE" > "${CF_SSHD_SSHDIR}/sshd_config"
+# Generate SSHd configuration template when missing.
+if [ -z "$CF_SSHD_TEMPLATE" ] || ! [ -f "$CF_SSHD_TEMPLATE" ]; then
+  warning "No SSHd template found at $CF_SSHD_TEMPLATE, using internal default"
+  CF_SSHD_TEMPLATE=$(mktemp)
+  cat <<'EOF' > "$CF_SSHD_TEMPLATE"
+LogLevel DEBUG3
+Port $PORT
+HostKey $PWD/ssh_host_rsa_key
+PidFile $PWD/sshd.pid
+
+# PAM is necessary for password authentication on Debian-based systems
+UsePAM yes
+
+# Allow interactive authentication (default value)
+#KbdInteractiveAuthentication yes
+
+# Same as above but for older SSH versions (default value)
+#ChallengeResponseAuthentication yes
+
+# Allow password authentication (default value)
+PasswordAuthentication no
+
+# Only allow single user
+AllowUsers $USER
+
+# Only allow those keys
+AuthorizedKeysFile $PWD/authorized_keys
+
+# Turns on sftp-server
+Subsystem    sftp    /usr/lib/ssh/sftp-server
+
+# Force the shell for the user
+Match User $USER
+SetEnv SHELL=$SHELL
+EOF
+fi
+
+if [ -f "$CF_SSHD_TEMPLATE" ]; then
+  verbose "Creating SSHd configuration at ${CF_SSHD_SSHDIR}/sshd_config from $CF_SSHD_TEMPLATE"
+  sed \
+    -e "s,\$PWD,${CF_SSHD_SSHDIR},g" \
+    -e "s,\$USER,$(id -un),g" \
+    -e "s,\$PORT,${CF_SSHD_PORT},g" \
+    -e "s,\$SHELL,${CF_SSHD_SHELL},g" \
+    "$CF_SSHD_TEMPLATE" > "${CF_SSHD_SSHDIR}/sshd_config"
+else
+  error "Cannot find SSHd template at $CF_SSHD_TEMPLATE"
+fi
 
 verbose "Starting SSHd server"
 /usr/sbin/sshd -f "${CF_SSHD_SSHDIR}/sshd_config" -D -E "${CF_SSHD_LOGDIR}/sshd.log" &
