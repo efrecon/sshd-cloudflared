@@ -8,6 +8,14 @@ branding:
   icon: terminal
   color: red
 
+inputs:
+  user:
+    description: |
+      The GitHub user to allow access to the SSH server. By default, this will
+      be the user that triggered the workflow.
+    required: false
+    default: ${{ github.actor }}
+
 runs:
   using: composite
   steps:
@@ -16,6 +24,7 @@ runs:
       shell: bash
       env:
         CF_SSHD_BRANCH: ${{ github.action_ref }}
+        CF_SSHD_USERNAME: ${{ inputs.user }}
       run: |
         curl -sSL "https://github.com/efrecon/sshd-cloudflared/raw/${CF_SSHD_BRANCH:-main}/install.sh" |
-          sh -s -- -r -i "entrypoint.sh" -- -g "${{ github.actor }}"
+          sh -s -- -r -i "entrypoint.sh" -- -g "$CF_SSHD_USERNAME"
