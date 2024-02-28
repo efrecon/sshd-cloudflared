@@ -41,8 +41,10 @@ usage() {
   exit "${1:-0}"
 }
 
-while getopts "rl:vh-" opt; do
+while getopts "b:rl:vh-" opt; do
   case "$opt" in
+    b) # Branch to use for the installation
+      INSTALL_BRANCH="$OPTARG";;
     r) # Run the installed script
       INSTALL_RUN=true;;
     l) # Where to send logs
