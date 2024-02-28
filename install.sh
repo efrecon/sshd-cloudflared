@@ -15,6 +15,9 @@ set -eu
 # The branch of this project to use for the installation
 : "${INSTALL_BRANCH:="main"}"
 
+# The name of the script to install and run
+: "${INSTALL_SCRIPT:="cf-sshd.sh"}"
+
 # Should we run the installed script? (all options after the -- are blindly
 # passed)
 : "${INSTALL_RUN:=false}"
@@ -41,10 +44,12 @@ usage() {
   exit "${1:-0}"
 }
 
-while getopts "b:rl:vh-" opt; do
+while getopts "b:i:rl:vh-" opt; do
   case "$opt" in
     b) # Branch to use for the installation
       INSTALL_BRANCH="$OPTARG";;
+    i) # Name of the script to install and run
+      INSTALL_SCRIPT="$OPTARG";;
     r) # Run the installed script
       INSTALL_RUN=true;;
     l) # Where to send logs
@@ -172,8 +177,8 @@ if ! check_command cloudflared; then
   install_cloudflared
 fi
 
-if ! check_command cf-sshd.sh; then
-  install_binary "${INSTALL_GITHUB%%/}/${INSTALL_PROJECT%//}/raw/${INSTALL_BRANCH}/cf-sshd.sh"
+if ! check_command "$INSTALL_SCRIPT"; then
+  install_binary "${INSTALL_GITHUB%%/}/${INSTALL_PROJECT%//}/raw/${INSTALL_BRANCH}/$INSTALL_SCRIPT" "cf-sshd.sh"
 fi
 
 if is_true "$INSTALL_RUN"; then
