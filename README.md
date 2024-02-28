@@ -2,12 +2,15 @@
 
 This project aims at providing access to the current directory on your work
 machine through an SSH [tunnel] at the CloudFlare edge, all this inside a Docker
-container for clean separation of resources. Containers are launched in the
-background and compatible with the vscode [remote] extension. Traffic is fully
-encrypted end-to-end. Provided that you have downloaded the [wrapper](#wrapper)
-`cf-sshd.sh` and made it available under your `$PATH`, running it will create a
-background container and print out instructions for how to connect to it from
-another machine using `ssh`:
+container for clean separation of resources. You can also use this project to
+[debug](#github-actions-debugging) your GitHub workflows.
+
+Containers are launched in the background and compatible with the vscode
+[remote] extension. Traffic is fully encrypted end-to-end. Provided that you
+have [installed](#installing-the-wrapper) the [wrapper](#wrapper) `cf-sshd.sh`
+and made it available under your `$PATH`, running it will create a background
+container and print out instructions for how to connect to it from another
+machine using `ssh`:
 
 ```console
 emmanuel@localhost:~/dev> cf-sshd.sh -v
@@ -37,7 +40,6 @@ you created the container. This is to make it easier to differentiate between
 several such environments. Inside the container, you will have the same username
 as outside.
 
-
 The entrypoint of the Dockerfile configures and creates a userspace SSH daemon,
 and establishes a guest tunnel using [cloudflared]. The SSH daemon automatically
 picks authorised keys from any user (yours!) at github, thus restricting access
@@ -46,6 +48,31 @@ to that user only.
   [tunnel]: https://developers.cloudflare.com/cloudflare-one/connections/connect-apps/do-more-with-tunnels/trycloudflare/
   [cloudflared]: https://github.com/cloudflare/cloudflared
   [remote]: https://code.visualstudio.com/docs/remote/ssh
+
+## GitHub Actions Debugging
+
+To debug a workflow, add a step similar to the following:
+
+```yaml
+  - name: SSHd
+    id: debug
+    run: |
+      curl -sSL https://github.com/efrecon/sshd-cloudflared/raw/main/install.sh | sh -s -- -r -i "entrypoint.sh" -- -g "${{ github.actor }}"
+```
+
+This will [install](#installing-the-wrapper) all dependencies and run the
+[entrypoint](./entrypoint.sh) directly on the runner. To get a prompt into your
+container inside the runner, run the command written down in the workflow logs.
+Breakdown of the options is as follows:
+
++ `-i` tells the installer to download and install the
+  [entrypoint](./entrypoint.sh), instead of the [wrapper](#wrapper).
++ `-r` is sent to the [`install.sh`](,/install.sh) script and tells it to run
+  the entrypoint once it has been downloaded.
++ `--` signals the end of options passed to the wrapper, everything else is sent
+  to the [`entrypoint`](./entrypoint.sh) of the Docker image.
++ `-g` passes the name of the GitHub user that started the workflow, access to
+  the SSH daemon will only be allowed from these keys.
 
 ## Tunnelled SSHd
 
@@ -165,7 +192,7 @@ installation somewhere in the `$PATH`. The wrapper will:
      as the container has its binary, e.g. `/bin/bash`.
    + Unless configured otherwise, the wrapper will arrange for the SSH server to
      be compatible with the VS Code Remote extension.
-5. Wait for the container and tunnel to be ready and extract tunnel information
+6. Wait for the container and tunnel to be ready and extract tunnel information
    from the Docker logs.
 
 Provided you have the [XDG] directory `$HOME/.local/bin` in your account, run
@@ -198,6 +225,17 @@ supports, as well as the environment variables that it recognises.
 
   [XDG]: https://specifications.freedesktop.org/basedir-spec/basedir-spec-latest.html
   [search]: https://docs.github.com/en/search-github/searching-on-github/searching-users
+
+## Installing the Wrapper
+
+An installer script is provided to install the wrapper and cloudflared. To
+install them, run the following. The current implementation requires `sudo`
+privileges and will install in `/usr/local/bin`. To download, you can use `wget`
+instead, as the [installer](./install.sh) supports both `curl` and `wget`.
+
+```bash
+curl -sSL https://github.com/efrecon/sshd-cloudflared/raw/main/install.sh | sh -s --
+```
 
 ## Manual Cleanup
 
