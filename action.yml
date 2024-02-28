@@ -1,8 +1,8 @@
 name: Debug your Workflows
 description: |
   This action helps you debug your workflows by running an SSH server,
-  accessible through temporary cloudflare tunnels, and restricted to your users
-  -- the SSH keys registered to the user that started the workflow at GitHub.
+  accessible through temporary cloudflare tunnels, and restricted to your user
+  -- the SSH keys registered for the user that started the workflow at GitHub.
 author: Emmanuell Frecon <efrecon+github@gmail.com>
 branding:
   icon: terminal
