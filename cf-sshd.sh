@@ -142,11 +142,10 @@ fi
 # GitHub search API.
 if [ "$#" = "0" ] && command -v git >/dev/null 2>&1; then
   verbose "No GitHub handle given, will try to guess from git settings"
-  set -x
   handle=;       # Will be the GitHub username, if any
   # Pick user information from gt
-  email=$(git config user.email)
-  fullname=$(git config user.name)
+  email=$(git config user.email || true)
+  fullname=$(git config user.name || true)
   # Search using the email address, this is often concealed though.
   if [ -n "$email" ]; then
     handle=$( curl --location --silent -G \
