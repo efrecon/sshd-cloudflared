@@ -1,0 +1,20 @@
+name: test
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+      - feature/*
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: SSHd
+        run: |
+          curl -sSL https://github.com/efrecon/sshd-cloudflared/raw/feature/installer/install.sh | sh -- -b feature/installer -r -- -w
+
