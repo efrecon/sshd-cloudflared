@@ -27,6 +27,7 @@ jobs:
     with:
       registry: ghcr.io
       platforms: linux/amd64,linux/arm64,linux/i386
+      version: ${{ needs.version.outputs.version }}
     secrets:
       username: ${{ github.repository_owner }}
       password: ${{ secrets.GITHUB_TOKEN }}
@@ -41,5 +42,6 @@ jobs:
     with:
       registry: localhost:5000
       platforms: linux/amd64
+      version: ${{ needs.version.outputs.version }}
     if: github.ref_name != 'main'
     needs: version
