@@ -36,6 +36,9 @@ CF_SSHD_SHELL=${CF_SSHD_SHELL:-"${SHELL:-""}"}
 # cases.
 CF_SSHD_SHELL_CANDIDATES=${CF_SSHD_SHELL_CANDIDATES:-"ash bash zsh sh"}
 
+# Protocol to use for the cloudflare tunnel
+CF_SSHD_PROTOCOL=${CF_SSHD_PROTOCOL:-"auto"}
+
 # Prefix to add to all lines that we output on stdout
 CF_SSHD_PREFIX=${CF_SSHD_PREFIX:-""}
 
@@ -51,10 +54,12 @@ usage() {
   exit "${1:-0}"
 }
 
-while getopts "g:s:vh-" opt; do
+while getopts "g:p:s:vh-" opt; do
   case "$opt" in
     g) # GitHub accounts to fetch public keys from (space separated)
       CF_SSHD_GITHUB="$OPTARG";;
+    p) # Protocol to use for the cloudflare tunnel
+      CF_SSHD_PROTOCOL="$OPTARG";;
     s) # Shell to use for the user, needs to be installed! Empty for picking among good defaults.
       CF_SSHD_SHELL="$OPTARG";;
     v) # Turn on verbosity, will otherwise log on errors/warnings only
@@ -233,7 +238,11 @@ pid_sshd=$!
 _sublog "${CF_SSHD_LOGDIR}/sshd.log" "sshd" &
 
 verbose 'Starting Cloudflare tunnel...'
-cloudflared tunnel --no-autoupdate --url "tcp://localhost:$CF_SSHD_PORT" >"${CF_SSHD_LOGDIR}/cloudflared.log" 2>&1 &
+cloudflared tunnel \
+  --no-autoupdate \
+  --url "tcp://localhost:$CF_SSHD_PORT" \
+  --protocol "$CF_SSHD_PROTOCOL" \
+    >"${CF_SSHD_LOGDIR}/cloudflared.log" 2>&1 &
 pid_cloudflared=$!
 _sublog "${CF_SSHD_LOGDIR}/cloudflared.log" "cloudflared" &
 
