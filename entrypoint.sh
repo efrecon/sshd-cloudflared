@@ -39,6 +39,9 @@ CF_SSHD_SHELL_CANDIDATES=${CF_SSHD_SHELL_CANDIDATES:-"ash bash zsh sh"}
 # Protocol to use for the cloudflare tunnel
 CF_SSHD_PROTOCOL=${CF_SSHD_PROTOCOL:-"auto"}
 
+# Location of the separation directory for sshd settings
+CF_SSHD_SEPARATIOND=${CF_SSHD_SEPARATIOND:-"/var/run/sshd"}
+
 # Prefix to add to all lines that we output on stdout
 CF_SSHD_PREFIX=${CF_SSHD_PREFIX:-""}
 
@@ -148,6 +151,15 @@ if [ -z "$CF_SSHD_SHELL" ]; then
     verbose "Picked $CF_SSHD_SHELL as shell for SSH daemon user"
   else
     error "Cannot find any shell for SSH settings! Tried: $CF_SSHD_SSH_CANDIDATES"
+  fi
+fi
+
+# Ensure the separation directory exists
+if ! [ -d "$CF_SSHD_SEPARATIOND" ]; then
+  if mkdir -p "$CF_SSHD_SEPARATIOND" && chmod 755 "$CF_SSHD_SEPARATIOND"; then
+    verbose "Created separation directory at $CF_SSHD_SEPARATIOND"
+  else
+    warn "Could not create separation directory at $CF_SSHD_SEPARATIOND"
   fi
 fi
 
