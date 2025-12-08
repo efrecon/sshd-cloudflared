@@ -10,7 +10,8 @@ CF_SSHD_ROOTDIR=${CF_SSHD_ROOTDIR:-"$( cd -P -- "$(dirname -- "$(command -v -- "
 # Verbosity level
 CF_SSHD_VERBOSE=${CF_SSHD_VERBOSE:-"0"}
 
-# GitHub handle to get keys from
+# GitHub handles to get keys from (space separated). When empty no keys are
+# fetched.
 CF_SSHD_GITHUB=${CF_SSHD_GITHUB:-""}
 
 # Port at which to run the SSH daemon inside the container.
@@ -52,7 +53,7 @@ usage() {
 
 while getopts "g:s:vh-" opt; do
   case "$opt" in
-    g) # GitHub account
+    g) # GitHub accounts to fetch public keys from (space separated)
       CF_SSHD_GITHUB="$OPTARG";;
     s) # Shell to use for the user, needs to be installed! Empty for picking among good defaults.
       CF_SSHD_SHELL="$OPTARG";;
@@ -160,9 +161,13 @@ CF_SSHD_LOGDIR=$(mktemp -d -t cf-sshd-logs-XXXXXX)
 
 verbose "SSHd settings in $CF_SSHD_SSHDIR"
 if [ -n "$CF_SSHD_GITHUB" ]; then
-  verbose "Collecting public keys from github user $CF_SSHD_GITHUB"
-  curl --silent --location "https://api.github.com/users/${CF_SSHD_GITHUB}/keys" |
-    jq -r '.[].key' > "${CF_SSHD_SSHDIR}/authorized_keys"
+  verbose "Collecting public keys from github users: $CF_SSHD_GITHUB"
+  true > "${CF_SSHD_SSHDIR}/authorized_keys"
+  for user in $CF_SSHD_GITHUB; do
+    trace "Fetching keys for user $user"
+    curl --silent --location "https://api.github.com/users/${user}/keys" |
+      jq -r '.[].key' >> "${CF_SSHD_SSHDIR}/authorized_keys"
+  done
   chmod go-rwx "${CF_SSHD_SSHDIR}/authorized_keys"
 fi
 
